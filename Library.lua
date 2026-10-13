@@ -429,13 +429,30 @@ local Templates = {
         MiniFooterAnchorSide = "down",
         MiniFooterOffset = 8,
         MiniFooterPadding = 6,
+        MiniFooterScreenNotMainUI = false,
         UIFrame = false,
         UIFrameColor = Color3.fromRGB(125, 85, 255),
         UIFrameThickness = 2,
         UIFrameTransparency = 0,
+        frameColorRainbow = false,
         IconDisable = false,
         FontCustomizer = false,
         FontConfig = "Code",
+
+        UiLoading = false,
+        loadwaittime = 1.5,
+        UiLoadingTitle = "Loading",
+        UiLoadingMessage = "Please wait...",
+        UiLoadingDescription = "",
+        UiLoadingCustomUI = nil,
+
+        TabDescribe = false,
+        TabDescribeText = nil,
+        TabDescribeMiniText = nil,
+        TabDescribeIcon = nil,
+        TabDescribeIconOffset = "Left",
+
+        ExAnimation = false,
 
         --// Animations \\--
         Animations = {
@@ -11054,6 +11071,11 @@ function Library:CreateWindow(WindowInfo)
     Library.ToggleKeybind = WindowInfo.ToggleKeybind
     Library.GlobalSearch = WindowInfo.GlobalSearch
 
+    if WindowInfo.ExAnimation then
+        for AnimationName in WindowInfo.Animations do
+            WindowInfo.Animations[AnimationName] = true
+        end
+    end
     Library.Animations = WindowInfo.Animations
     Library.TabTransitionInfo = TweenInfo.new(
         math.max(0, WindowInfo.TabTransitionTime or 0.22),
@@ -11074,6 +11096,7 @@ function Library:CreateWindow(WindowInfo)
     local CurrentTabInfo
     local CurrentTabLabel
     local CurrentTabDescription
+    local CurrentTabDescribeIcon
     local ResizeButton
     local Tabs
     local Container
@@ -11453,17 +11476,28 @@ end
                 --// UI Frame
         if WindowInfo.UIFrame then
             local UIFrameStroke = New("UIStroke", {
-                Color = WindowInfo.UIFrameColor or Library.Scheme.AccentColor,
+                Color = WindowInfo.frameColorRainbow and Color3.fromHSV((os.clock() * 0.15) % 1, 1, 1)
+                    or WindowInfo.UIFrameColor or Library.Scheme.AccentColor,
                 Thickness = WindowInfo.UIFrameThickness or 2,
                 Transparency = WindowInfo.UIFrameTransparency or 0,
                 ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
                 Parent = MainFrame,
             })
-            Library:AddToRegistry(UIFrameStroke, {
-                Color = function()
-                    return WindowInfo.UIFrameColor or Library.Scheme.AccentColor
-                end,
-            })
+            local function GetUIFrameColor()
+                if WindowInfo.frameColorRainbow then
+                    return Color3.fromHSV((os.clock() * 0.15) % 1, 1, 1)
+                end
+                return WindowInfo.UIFrameColor or Library.Scheme.AccentColor
+            end
+
+            Library:AddToRegistry(UIFrameStroke, { Color = GetUIFrameColor })
+            if WindowInfo.frameColorRainbow then
+                Library:GiveSignal(RunService.RenderStepped:Connect(function()
+                    if UIFrameStroke.Parent then
+                        UIFrameStroke.Color = GetUIFrameColor()
+                    end
+                end))
+            end
         end
 
         DividerLine = New("Frame", {
@@ -11621,41 +11655,75 @@ end
             Parent = CurrentTabInfo,
         })
 
-        New("UIListLayout", {
-            FillDirection = Enum.FillDirection.Vertical,
-            HorizontalAlignment = Enum.HorizontalAlignment.Left,
-            VerticalAlignment = Enum.VerticalAlignment.Center,
+        local CurrentTabInfoContent = New("Frame", {
+            BackgroundTransparency = 1,
+            Size = UDim2.fromScale(1, 1),
             Parent = CurrentTabInfo,
         })
-
         New("UIPadding", {
             PaddingBottom = UDim.new(0, 8),
             PaddingLeft = UDim.new(0, 8),
             PaddingRight = UDim.new(0, 8),
             PaddingTop = UDim.new(0, 8),
-            Parent = CurrentTabInfo,
+            Parent = CurrentTabInfoContent,
+        })
+
+        local CurrentTabDescribeRow = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 0),
+            Parent = CurrentTabInfoContent,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Padding = UDim.new(0, 8),
+            Parent = CurrentTabDescribeRow,
+        })
+
+        CurrentTabDescribeIcon = New("ImageLabel", {
+            BackgroundTransparency = 1,
+            LayoutOrder = WindowInfo.TabDescribeIconOffset == "Right" and 2 or 1,
+            Size = UDim2.fromOffset(20, 20),
+            Visible = false,
+            Parent = CurrentTabDescribeRow,
+        })
+
+        local CurrentTabTextHolder = New("Frame", {
+            AutomaticSize = Enum.AutomaticSize.Y,
+            BackgroundTransparency = 1,
+            LayoutOrder = WindowInfo.TabDescribeIconOffset == "Right" and 1 or 2,
+            Size = UDim2.new(1, -28, 0, 0),
+            Parent = CurrentTabDescribeRow,
+        })
+        New("UIListLayout", {
+            FillDirection = Enum.FillDirection.Vertical,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            Parent = CurrentTabTextHolder,
         })
 
         CurrentTabLabel = New("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.fromScale(1, 0),
+            Size = UDim2.new(1, 0, 0, 0),
             AutomaticSize = Enum.AutomaticSize.Y,
             Text = "",
             TextSize = 14,
             TextXAlignment = Enum.TextXAlignment.Left,
-            Parent = CurrentTabInfo,
+            Parent = CurrentTabTextHolder,
         })
 
         CurrentTabDescription = New("TextLabel", {
             BackgroundTransparency = 1,
-            Size = UDim2.fromScale(1, 0),
+            Size = UDim2.new(1, 0, 0, 0),
             AutomaticSize = Enum.AutomaticSize.Y,
             Text = "",
             TextWrapped = true,
-            TextSize = 14,
+            TextSize = 12,
             TextXAlignment = Enum.TextXAlignment.Left,
             TextTransparency = 0.5,
-            Parent = CurrentTabInfo,
+            Parent = CurrentTabTextHolder,
         })
 
         SearchBox = New("TextBox", {
@@ -12145,13 +12213,43 @@ end
     end
 
     function Window:ShowTabInfo(Name, Description)
-        CurrentTabLabel.Text = Name
-        CurrentTabDescription.Text = Description
+        if WindowInfo.TabDescribe then
+            CurrentTabLabel.Text = WindowInfo.TabDescribeText or Name or ""
+            CurrentTabDescription.Text = WindowInfo.TabDescribeMiniText or Description or ""
+
+            local Icon = WindowInfo.TabDescribeIcon and Library:GetCustomIcon(WindowInfo.TabDescribeIcon)
+            CurrentTabDescribeIcon.Visible = Icon ~= nil
+            if Icon then
+                CurrentTabTextHolder.Size = UDim2.new(1, -28, 0, 0)
+                Library:ApplyLucideIcon(CurrentTabDescribeIcon, Icon)
+            else
+                CurrentTabTextHolder.Size = UDim2.new(1, 0, 0, 0)
+                CurrentTabDescribeIcon.Image = ""
+            end
+        else
+            CurrentTabLabel.Text = Name or ""
+            CurrentTabDescription.Text = Description or ""
+            CurrentTabDescribeIcon.Visible = false
+            CurrentTabTextHolder.Size = UDim2.new(1, 0, 0, 0)
+        end
 
         if IsDefaultSearchbarSize then
             SearchBox.Size = UDim2.fromScale(0.5, 1)
         end
         CurrentTabInfo.Visible = true
+    end
+
+    function Window:TabDescribeIcon(ImageID, Offset)
+        WindowInfo.TabDescribe = true
+        WindowInfo.TabDescribeIcon = ImageID
+        if Offset == "Left" or Offset == "Right" then
+            WindowInfo.TabDescribeIconOffset = Offset
+            CurrentTabDescribeIcon.LayoutOrder = Offset == "Right" and 2 or 1
+            CurrentTabTextHolder.LayoutOrder = Offset == "Right" and 1 or 2
+        end
+        if Library.ActiveTab then
+            Window:ShowTabInfo(Library.ActiveTab.Name, Library.ActiveTab.Description)
+        end
     end
 
     function Window:HideTabInfo()
@@ -13414,7 +13512,7 @@ end
                 }):Play()
             end
 
-            if Description then
+            if Description or WindowInfo.TabDescribe then
                 Window:ShowTabInfo(Name, Description)
             end
 
@@ -14843,11 +14941,8 @@ end
 
             Library:GiveSignal(RunService.RenderStepped:Connect(function()
                 if Library.Unloaded then return end
-                if MainFrame.Visible then
-                    MiniFooterHolder.Visible = true
+                if MainFrame.Visible or WindowInfo.MiniFooterScreenNotMainUI then
                     ApplyMiniFooterPosition()
-                else
-                    MiniFooterHolder.Visible = false
                 end
             end))
         else
@@ -14858,6 +14953,12 @@ end
             end
             PositionDraggable(MiniFooterHolder, MiniFooterHolder.Position)
         end
+
+        Library:GiveSignal(RunService.RenderStepped:Connect(function()
+            if not Library.Unloaded then
+                MiniFooterHolder.Visible = MainFrame.Visible or WindowInfo.MiniFooterScreenNotMainUI == true
+            end
+        end))
 
         --// Mini Footer API
         function Window:SetMiniFooterText(Text: string)
@@ -14896,6 +14997,57 @@ end
 
     Window.MainFrame = MainFrame
     Library.Window = Window
+
+    local StartupLoading
+    function Window:loadwaittime(Value)
+        if typeof(Value) == "number" then
+            WindowInfo.loadwaittime = math.max(0, Value)
+        elseif typeof(Value) == "string" then
+            WindowInfo.UiLoadingMessage = Value
+            if StartupLoading then
+                StartupLoading:SetMessage(Value)
+            end
+        end
+        return StartupLoading
+    end
+
+    if WindowInfo.UiLoading then
+        StartupLoading = Library:CreateLoading({
+            Title = WindowInfo.UiLoadingTitle,
+            CurrentStep = 0,
+            TotalSteps = 1,
+            WindowWidth = 420,
+            WindowHeight = 180,
+        })
+
+        if StartupLoading then
+            StartupLoading:SetMessage(WindowInfo.UiLoadingMessage or "Please wait...")
+            StartupLoading:SetDescription(WindowInfo.UiLoadingDescription or "")
+            Window.UiLoading = StartupLoading
+
+            if typeof(WindowInfo.UiLoadingCustomUI) == "function" then
+                local Success, ErrorMessage = pcall(WindowInfo.UiLoadingCustomUI, StartupLoading, Window)
+                if not Success then
+                    warn("UiLoadingCustomUI failed: " .. tostring(ErrorMessage))
+                end
+            end
+
+            task.spawn(function()
+                local StartedAt = os.clock()
+                while Library.ActiveLoading == StartupLoading do
+                    local WaitTime = math.max(0, tonumber(WindowInfo.loadwaittime) or 0)
+                    if os.clock() - StartedAt >= WaitTime then
+                        break
+                    end
+                    task.wait(0.05)
+                end
+
+                if Library.ActiveLoading == StartupLoading then
+                    StartupLoading:Destroy()
+                end
+            end)
+        end
+    end
 
     return Window
 end
@@ -14962,6 +15114,7 @@ function Library:CreateLoading(LoadingInfo)
         AutoButtonColor = false,
         Parent = ScreenGui,
     })
+    Loading.MainFrame = MainFrame
     Library:AddOutline(MainFrame)
     table.insert(Library.Corners, New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = MainFrame }))
 
@@ -14980,6 +15133,7 @@ function Library:CreateLoading(LoadingInfo)
         Size = UDim2.new(0, Loading.ContentWidth, 1, 0),
         Parent = MainFrame,
     })
+    Loading.Container = Container
 
     local SideBar = New("Frame", {
         Name = "SideBar",
@@ -14990,6 +15144,7 @@ function Library:CreateLoading(LoadingInfo)
         Visible = Loading.ShowSidebar,
         Parent = MainFrame,
     })
+    Loading.Sidebar = SideBar
     local SidebarCorner = New("UICorner", { CornerRadius = UDim.new(0, Library.CornerRadius), Parent = SideBar })
     table.insert(Library.Corners, SidebarCorner)
 
