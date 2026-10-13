@@ -39,7 +39,7 @@ local Window = Library:CreateWindow({
     Extensions = true, -- true or false
 })
 ```
-# full example code
+### full example code
 > hint: A fully functional UI example (virtually identical to the official Obsidian interface)
 
 ```lua
