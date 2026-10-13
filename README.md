@@ -38,7 +38,7 @@ local Window = Library:CreateWindow({
     FontCustomizer = true, -- true or false
     Extensions = true, -- true or false
 })
-
+```
 # full example code
 > hint: A fully functional UI example (virtually identical to the official Obsidian interface)
 
