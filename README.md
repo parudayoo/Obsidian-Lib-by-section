@@ -8,11 +8,12 @@ As an open-source library, Obsidian UI allows for deep customization. Based on i
 **Mini Footer**
 
 
-```MiniFooter, MiniFooterText, MiniFooterAnchor, MiniFooterAnchorSide, MiniFooterOffset```
+```MiniFooter, MiniFooterText, MiniFooterAnchor, MiniFooterAnchorSide, MiniFooterOffset, MiniFooterScreenNotMainUI
+```
 
 **UI Frame**
 
-```UIFrame, UIFrameColor, UIFrameThickness, UIFrameTransparency```
+```UIFrame, UIFrameColor, UIFrameThickness, UIFrameTransparency, frameColorRainbow```
 
 **Icon disable**
 
@@ -26,6 +27,15 @@ As an open-source library, Obsidian UI allows for deep customization. Based on i
 
 ```Library:CreateConditionalHolder```
 
+**UiLoading**
+```loadwaittime, Window:loadwaittime("..."), UiLoadingCustomUI: function(Loading, Window), Loading.MainFrame ```
+
+**TabDescribe**
+```Window:TabDescribeIcon(ImageID, "Right")```
+
+**ExAnimation**
+```ExAnimation```
+
 # explain
 > Note: Honestly, I don’t even think I need to be here lol
 
@@ -35,7 +45,7 @@ Full support for Mini Footer FPS/PING replacement: Automatic handling via draggi
 
 **UI Frame**
 Add RGB border around Main UI
-> hint: I'll add Rainbow at some point, don't worry 😉
+> hint: lol rainbow
 
 **Icon disable**
 Completely stop generating icons
@@ -49,6 +59,14 @@ Specify the font using the Enum.Font name.
 
 Toggle GroupBox visibility by condition function
 
+**UiLoading**
+
+UI loading, Displays the standard loading screen. loadwaittime sets the display duration in seconds, and Window:loadwaittime("...") sets the display message.
+
+Callback in the format of UiLoadingCustomUI: function(Loading, Window), allowing you to customize elements such as Loading.MainFrame.
+
+**TabDescribe**
+Displays a description, a smaller subtitle/description text, and an icon at the top. The icon can be specified via configuration options or by using Window:TabDescribeIcon(ImageID, "Right").
 
 
 # example
@@ -78,44 +96,101 @@ local Window = Library:CreateWindow({
 > hint: A fully functional UI example (virtually identical to the official Obsidian interface)
 
 ```lua
-local Window = Library:CreateWindow({
-    Title = "Section UI by Obsidian ui",
-    Footer = "v1.0.0",
+-- repo(section) loading
+local section = "https://raw.githubusercontent.com/parudayoo/Obsidian-Lib-by-section/refs/heads/main/"
 
-    -- Mini Footer
+local Library = loadstring(game:HttpGet(section .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(section .. "ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(section .. "SaveManager.lua"))()
+
+-- Managers
+ThemeManager:SetLibrary(Library)
+ThemeManager:SetFolder("MyScript/Themes")
+
+SaveManager:SetLibrary(Library)
+SaveManager:SetFolder("MyScript/Configs")
+SaveManager:SetAutoload(true, "default")
+SaveManager:SetAutoSave(true, 30)
+
+-- Window
+local Window = Library:CreateWindow({
+    Title = "Section",
+    Footer = "v1.0.0｜section ui by mspaint",
+    ToggleKeybind = Enum.KeyCode.RightControl,
+    NotifySide = "Right",
+
+    -- Section UI extensions (optional)
     MiniFooter = true,
-    MiniFooterText = "FPS: #FPS | PING: #PING | User: " .. game.Players.LocalPlayer.Name,
+    MiniFooterText = "Section | FPS: #FPS | PING: #PING",
     MiniFooterAnchor = true,
-    MiniFooterAnchorSide = "down", -- up / down / left / right
+    MiniFooterAnchorSide = "down",
     MiniFooterOffset = 8,
 
-    -- UI Frame
     UIFrame = true,
     UIFrameColor = Color3.fromRGB(125, 85, 255),
-    UIFrameThickness = 2,
+    UIFrameThickness = 4,
 
-    -- Icon full disable
-    IconDisable = false,
-
-    -- Font
     FontCustomizer = true,
-    FontConfig = "Gotham",
+    FontConfig = "Arcade",
 })
 
-local Tab = Window:AddTab("Main", "home")
-local Group = Tab:AddLeftGroupbox("Settings")
+-- Tabs
+local MainTab = Window:AddTab({ Name = "Main", Icon = "home" })
+local SettingsTab = Window:AddTab({ Name = "Settings", Icon = "settings" })
 
-local Toggle = Group:AddToggle("AutoFarm", { Text = "Auto Farm", Default = false })
+-- Main controls
+local MainGroup = MainTab:AddLeftGroupbox("General")
 
--- Extensions example
-local Conditional = Library:CreateConditionalHolder({
-    Parent = Group.Container,
-    Condition = function()
-        return Toggle.Value == true
+MainGroup:AddToggle("ExampleToggle", {
+    Text = "Example Toggle",
+    Default = false,
+    Callback = function(value)
+        print("Example Toggle:", value)
     end,
 })
 
--- Elements can be added to conditional holders using the same API as for standard holders.
-Conditional:AddSlider("Speed", { Text = "Speed", Min = 1, Max = 100, Default = 16 })
-Conditional:AddButton({ Text = "Execute", Func = function() print("Executed!") end })
+MainGroup:AddSlider("ExampleSlider", {
+    Text = "Example Slider",
+    Default = 25,
+    Min = 0,
+    Max = 100,
+    Rounding = 0,
+    Callback = function(value)
+        print("Example Slider:", value)
+    end,
+})
+
+MainGroup:AddDropdown("ExampleDropdown", {
+    Text = "Example Dropdown",
+    Values = { "Option 1", "Option 2", "Option 3" },
+    Default = 1,
+    Callback = function(value)
+        print("Example Dropdown:", value)
+    end,
+})
+
+MainGroup:AddInput("ExampleInput", {
+    Text = "Example Input",
+    Default = "",
+    Placeholder = "Type something",
+    Finished = true,
+    Callback = function(value)
+        print("Example Input:", value)
+    end,
+})
+
+MainGroup:AddButton({
+    Text = "Example Button",
+    Func = function()
+        print("Button clicked")
+    end,
+})
+
+-- Manager UI
+ThemeManager:BuildThemeManager(Window)
+SaveManager:BuildConfigSection(SettingsTab)
+
+-- Load the autoload config after creating the controls.
+SaveManager:LoadAutoloadConfig()
+SaveManager:InitAutoSave()
 ```
