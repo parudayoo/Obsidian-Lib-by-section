@@ -11096,6 +11096,7 @@ function Library:CreateWindow(WindowInfo)
     local CurrentTabInfo
     local CurrentTabLabel
     local CurrentTabDescription
+    local CurrentTabTextHolder
     local CurrentTabDescribeIcon
     local ResizeButton
     local Tabs
@@ -11690,7 +11691,7 @@ end
             Parent = CurrentTabDescribeRow,
         })
 
-        local CurrentTabTextHolder = New("Frame", {
+        CurrentTabTextHolder = New("Frame", {
             AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
             LayoutOrder = WindowInfo.TabDescribeIconOffset == "Right" and 1 or 2,
