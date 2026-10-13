@@ -46,7 +46,7 @@ Specify the font using the Enum.Font name.
 
 **Extensions**
 
-// Toggle GroupBox visibility by condition function
+Toggle GroupBox visibility by condition function
 
 
 
