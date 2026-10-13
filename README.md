@@ -5,5 +5,7 @@ Obsidian UI is a Roblox UI library known for its high quality and widespread ado
 
 As an open-source library, Obsidian UI allows for deep customization. Based on it, Section UI is our customized extension that adds convenient features and enhancements, making it even more user-friendly for everyone.
 ### Extensions
--- Mini Footer
+**Mini Footer**
+
+
 ```MiniFooter, MiniFooterText, MiniFooterAnchor, MiniFooterAnchorSide, MiniFooterOffset```
