@@ -28,6 +28,7 @@ As an open-source library, Obsidian UI allows for deep customization. Based on i
 
 # explain
 > Note: Honestly, I don’t even think I need to be here lol
+
 **Mini Footer**
 
 Full support for Mini Footer FPS/PING replacement: Automatic handling via dragging or top/bottom/left/right anchoring.
