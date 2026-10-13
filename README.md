@@ -84,11 +84,25 @@ local SaveManager = loadstring(game:HttpGet(section .. "SaveManager.lua"))()
 
 ```lua
 local Window = Library:CreateWindow({
+    -- existing
+    Title = 'Section', -- <b></b> to customize Title
+    Icon = '',
+    Footer = 'V 1.0',
+　　DisableSearch = false,
+    EnableCompacting = true,
+    SidebarCompacted = true,
+    EnableSidebarResize = true,
+    CornerRadius = 30,
+    BackgroundImage = 'rbxassetid://',
+    -- section
     MiniFooter = false,　-- true or false
     UIFrame = true, -- true or false
     IconDisable = false, -- true or false
     FontCustomizer = true, -- true or false
     Extensions = true, -- true or false
+    UiLoading = false, -- true or false
+    TabDescribe = false, -- true or false
+    ExAnimation = false, -- false
 })
 ```
 ### full example code
