@@ -11085,6 +11085,12 @@ function Library:CreateWindow(WindowInfo)
     Library.TabSwipeOffset = math.max(1, WindowInfo.TabSwipeOffset or 26)
     Library.TabSwipeFrom = WindowInfo.TabSwipeFrom or "right"
 
+    -- Declare the Window table before the UI construction block.  The block
+    -- below can build optional TabDescribe elements, so every reference to
+    -- Window resolves to this local table instead of a nil global.
+    local Window = {}
+    local Fading = false
+
     local IsDefaultSearchbarSize = WindowInfo.SearchbarSize == UDim2.fromScale(1, 1)
     local MainFrame
     local DividerLine
@@ -11926,10 +11932,6 @@ end
 
         Library.WindowContainer = Container
     end
-
-    --// Window Table \\--
-    local Window = {}
-    local Fading = false
 
     local function SetUICorner(UICorner, Corner, HalfValue)
         local Current = UICorner[Corner]
