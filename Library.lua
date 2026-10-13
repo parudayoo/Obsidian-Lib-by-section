@@ -11692,12 +11692,14 @@ end
         })
 
         CurrentTabTextHolder = New("Frame", {
+            Name = "TabDescribeTextHolder",
             AutomaticSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
             LayoutOrder = WindowInfo.TabDescribeIconOffset == "Right" and 1 or 2,
             Size = UDim2.new(1, -28, 0, 0),
             Parent = CurrentTabDescribeRow,
         })
+        Window.TabDescribeTextHolder = CurrentTabTextHolder
         New("UIListLayout", {
             FillDirection = Enum.FillDirection.Vertical,
             HorizontalAlignment = Enum.HorizontalAlignment.Left,
@@ -12214,6 +12216,11 @@ end
     end
 
     function Window:ShowTabInfo(Name, Description)
+        local TextHolder = CurrentTabTextHolder or Window.TabDescribeTextHolder
+        if not TextHolder and CurrentTabInfo then
+            TextHolder = CurrentTabInfo:FindFirstChild("TabDescribeTextHolder", true)
+        end
+
         if WindowInfo.TabDescribe then
             CurrentTabLabel.Text = WindowInfo.TabDescribeText or Name or ""
             CurrentTabDescription.Text = WindowInfo.TabDescribeMiniText or Description or ""
@@ -12221,17 +12228,17 @@ end
             local Icon = WindowInfo.TabDescribeIcon and Library:GetCustomIcon(WindowInfo.TabDescribeIcon)
             CurrentTabDescribeIcon.Visible = Icon ~= nil
             if Icon then
-                CurrentTabTextHolder.Size = UDim2.new(1, -28, 0, 0)
+                if TextHolder then TextHolder.Size = UDim2.new(1, -28, 0, 0) end
                 Library:ApplyLucideIcon(CurrentTabDescribeIcon, Icon)
             else
-                CurrentTabTextHolder.Size = UDim2.new(1, 0, 0, 0)
+                if TextHolder then TextHolder.Size = UDim2.new(1, 0, 0, 0) end
                 CurrentTabDescribeIcon.Image = ""
             end
         else
             CurrentTabLabel.Text = Name or ""
             CurrentTabDescription.Text = Description or ""
             CurrentTabDescribeIcon.Visible = false
-            CurrentTabTextHolder.Size = UDim2.new(1, 0, 0, 0)
+            if TextHolder then TextHolder.Size = UDim2.new(1, 0, 0, 0) end
         end
 
         if IsDefaultSearchbarSize then
@@ -12246,7 +12253,10 @@ end
         if Offset == "Left" or Offset == "Right" then
             WindowInfo.TabDescribeIconOffset = Offset
             CurrentTabDescribeIcon.LayoutOrder = Offset == "Right" and 2 or 1
-            CurrentTabTextHolder.LayoutOrder = Offset == "Right" and 1 or 2
+            local TextHolder = CurrentTabTextHolder or Window.TabDescribeTextHolder
+            if TextHolder then
+                TextHolder.LayoutOrder = Offset == "Right" and 1 or 2
+            end
         end
         if Library.ActiveTab then
             Window:ShowTabInfo(Library.ActiveTab.Name, Library.ActiveTab.Description)
