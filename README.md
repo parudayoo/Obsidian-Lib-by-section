@@ -26,6 +26,30 @@ As an open-source library, Obsidian UI allows for deep customization. Based on i
 
 ```Library:CreateConditionalHolder```
 
+# explain
+> Note: Honestly, I don’t even think I need to be here lol
+**Mini Footer**
+
+Full support for Mini Footer FPS/PING replacement: Automatic handling via dragging or top/bottom/left/right anchoring.
+
+**UI Frame**
+Add RGB border around Main UI
+> hint: I'll add Rainbow at some point, don't worry 😉
+
+**Icon disable**
+Completely stop generating icons
+> hint: We don’t really recommend using this feature at the moment
+
+**Font customizer**
+
+Specify the font using the Enum.Font name.
+
+**Extensions**
+
+// Toggle GroupBox visibility by condition function
+
+
+
 # example
 > Note: These features are intended to be added to the function below.
 
@@ -83,3 +107,4 @@ local Conditional = Library:CreateConditionalHolder({
 -- Elements can be added to conditional holders using the same API as for standard holders.
 Conditional:AddSlider("Speed", { Text = "Speed", Min = 1, Max = 100, Default = 16 })
 Conditional:AddButton({ Text = "Execute", Func = function() print("Executed!") end })
+```
