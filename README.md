@@ -8,8 +8,7 @@ As an open-source library, Obsidian UI allows for deep customization. Based on i
 **Mini Footer**
 
 
-```MiniFooter, MiniFooterText, MiniFooterAnchor, MiniFooterAnchorSide, MiniFooterOffset, MiniFooterScreenNotMainUI
-```
+```MiniFooter, MiniFooterText, MiniFooterAnchor, MiniFooterAnchorSide, MiniFooterOffset, MiniFooterScreenNotMainUI```
 
 **UI Frame**
 
