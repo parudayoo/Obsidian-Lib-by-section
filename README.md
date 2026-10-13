@@ -38,3 +38,48 @@ local Window = Library:CreateWindow({
     FontCustomizer = true, -- true or false
     Extensions = true, -- true or false
 })
+
+# full example code
+> hint: A fully functional UI example (virtually identical to the official Obsidian interface)
+
+```lua
+local Window = Library:CreateWindow({
+    Title = "Section UI by Obsidian ui",
+    Footer = "v1.0.0",
+
+    -- Mini Footer
+    MiniFooter = true,
+    MiniFooterText = "FPS: #FPS | PING: #PING | User: " .. game.Players.LocalPlayer.Name,
+    MiniFooterAnchor = true,
+    MiniFooterAnchorSide = "down", -- up / down / left / right
+    MiniFooterOffset = 8,
+
+    -- UI Frame
+    UIFrame = true,
+    UIFrameColor = Color3.fromRGB(125, 85, 255),
+    UIFrameThickness = 2,
+
+    -- Icon full disable
+    IconDisable = false,
+
+    -- Font
+    FontCustomizer = true,
+    FontConfig = "Gotham",
+})
+
+local Tab = Window:AddTab("Main", "home")
+local Group = Tab:AddLeftGroupbox("Settings")
+
+local Toggle = Group:AddToggle("AutoFarm", { Text = "Auto Farm", Default = false })
+
+-- Extensions example
+local Conditional = Library:CreateConditionalHolder({
+    Parent = Group.Container,
+    Condition = function()
+        return Toggle.Value == true
+    end,
+})
+
+-- Elements can be added to conditional holders using the same API as for standard holders.
+Conditional:AddSlider("Speed", { Text = "Speed", Min = 1, Max = 100, Default = 16 })
+Conditional:AddButton({ Text = "Execute", Func = function() print("Executed!") end })
