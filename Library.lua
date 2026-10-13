@@ -11699,7 +11699,6 @@ end
             Size = UDim2.new(1, -28, 0, 0),
             Parent = CurrentTabDescribeRow,
         })
-        Window.TabDescribeTextHolder = CurrentTabTextHolder
         New("UIListLayout", {
             FillDirection = Enum.FillDirection.Vertical,
             HorizontalAlignment = Enum.HorizontalAlignment.Left,
@@ -12216,7 +12215,7 @@ end
     end
 
     function Window:ShowTabInfo(Name, Description)
-        local TextHolder = CurrentTabTextHolder or Window.TabDescribeTextHolder
+        local TextHolder = CurrentTabTextHolder
         if not TextHolder and CurrentTabInfo then
             TextHolder = CurrentTabInfo:FindFirstChild("TabDescribeTextHolder", true)
         end
@@ -12253,7 +12252,7 @@ end
         if Offset == "Left" or Offset == "Right" then
             WindowInfo.TabDescribeIconOffset = Offset
             CurrentTabDescribeIcon.LayoutOrder = Offset == "Right" and 2 or 1
-            local TextHolder = CurrentTabTextHolder or Window.TabDescribeTextHolder
+            local TextHolder = CurrentTabTextHolder
             if TextHolder then
                 TextHolder.LayoutOrder = Offset == "Right" and 1 or 2
             end
