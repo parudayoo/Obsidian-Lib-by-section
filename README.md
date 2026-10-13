@@ -32,9 +32,9 @@ As an open-source library, Obsidian UI allows for deep customization. Based on i
 
 ```lua
 local Window = Library:CreateWindow({
-    MiniFooter = false,
-    UIFrame = true,
-    IconDisable = false,
-    FontCustomizer = true,
-    Extensions = true,
+    MiniFooter = false,　-- true or false
+    UIFrame = true, -- true or false
+    IconDisable = false, -- true or false
+    FontCustomizer = true, -- true or false
+    Extensions = true, -- true or false
 })
