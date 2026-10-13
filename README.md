@@ -52,6 +52,16 @@ Toggle GroupBox visibility by condition function
 
 
 # example
+**repo**
+> Note🍭
+```lua
+local section = "https://raw.githubusercontent.com/parudayoo/Obsidian-Lib-by-section/refs/heads/main/"
+
+local Library = loadstring(game:HttpGet(section .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(section .. "ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(section .. "SaveManager.lua"))()
+```
+
 > Note: These features are intended to be added to the function below.
 
 
