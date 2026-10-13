@@ -30,10 +30,11 @@ As an open-source library, Obsidian UI allows for deep customization. Based on i
 > Note: These features are intended to be added to the function below.
 
 
-```  local Window = Library:CreateWindow({ 
-     Mini Footer = True, or False,
-     UI Frame = True, or False,
-     IconDisable = True, or False,
-     FontCustomizer = True, or False,
-     Extensions = True, or False,
-})  ```
+```lua
+local Window = Library:CreateWindow({
+    MiniFooter = false,
+    UIFrame = true,
+    IconDisable = false,
+    FontCustomizer = true,
+    Extensions = true,
+})
