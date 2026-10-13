@@ -422,6 +422,21 @@ local Templates = {
         --// Background \\--
         BackgroundImage = "",
 
+        --// Section UI extensions
+        MiniFooter = false,
+        MiniFooterText = "#FPS | #PING",
+        MiniFooterAnchor = false,
+        MiniFooterAnchorSide = "down",
+        MiniFooterOffset = 8,
+        MiniFooterPadding = 6,
+        UIFrame = false,
+        UIFrameColor = Color3.fromRGB(125, 85, 255),
+        UIFrameThickness = 2,
+        UIFrameTransparency = 0,
+        IconDisable = false,
+        FontCustomizer = false,
+        FontConfig = "Code",
+
         --// Animations \\--
         Animations = {
             ToggleWindow = false,
@@ -11007,7 +11022,7 @@ function Library:CreateWindow(WindowInfo)
     if typeof(WindowInfo.Font) == "EnumItem" then
         WindowInfo.Font = Font.fromEnum(WindowInfo.Font :: any)
     end
-        --// Font Customizer
+    --// Font Customizer
     if WindowInfo.FontCustomizer and WindowInfo.FontConfig then
         local EnumFont = Enum.Font[tostring(WindowInfo.FontConfig)]
         if EnumFont then
@@ -11017,27 +11032,6 @@ function Library:CreateWindow(WindowInfo)
     WindowInfo.CornerRadius = math.min(WindowInfo.CornerRadius, 20)
 
     local TabButtonsStyle = WindowInfo.TabButtonsStyle
-
-            --// Mini Footer \\--
-        MiniFooter = false,
-        MiniFooterText = "#FPS | #PING",
-        MiniFooterAnchor = false,
-        MiniFooterAnchorSide = "down", -- "up" | "down" | "left" | "right"
-        MiniFooterOffset = 8,
-        MiniFooterPadding = 6,
-
-        --// UI Frame \\--
-        UIFrame = false,
-        UIFrameColor = Color3.fromRGB(125, 85, 255),
-        UIFrameThickness = 2,
-        UIFrameTransparency = 0,
-
-        --// Icon \\--
-        IconDisable = false,
-
-        --// Font \\--
-        FontCustomizer = false,
-        FontConfig = "Code", -- Enum.Font の名前（"Code", "Gotham", "SourceSans" 等）
 
     --// Old Naming \\--
     if WindowInfo.Compact ~= nil then
