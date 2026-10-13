@@ -28,6 +28,8 @@ As an open-source library, Obsidian UI allows for deep customization. Based on i
 
 # example
 > Note: These features are intended to be added to the function below.
+
+
 ```local Window = Library:CreateWindow({
      Mini Footer = True, or False,
      UI Frame = True, or False,
