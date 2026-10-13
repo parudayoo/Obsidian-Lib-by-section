@@ -9,3 +9,21 @@ As an open-source library, Obsidian UI allows for deep customization. Based on i
 
 
 ```MiniFooter, MiniFooterText, MiniFooterAnchor, MiniFooterAnchorSide, MiniFooterOffset```
+
+**UI Frame**
+
+```UIFrame, UIFrameColor, UIFrameThickness, UIFrameTransparency```
+
+**Icon disable**
+
+```IconDisable```
+
+**Font customizer**
+
+```FontCustomizer, FontConfig```
+
+**Extensions**
+
+```Library:CreateConditionalHolder```
+
+# example
