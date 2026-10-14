@@ -10,6 +10,7 @@ local UserInputService: UserInputService = cloneref(game:GetService("UserInputSe
 local TextService: TextService = cloneref(game:GetService("TextService"))
 local Teams: Teams = cloneref(game:GetService("Teams"))
 local TweenService: TweenService = cloneref(game:GetService("TweenService"))
+local HttpService: HttpService = cloneref(game:GetService("HttpService"))
 
 local getgenv = getgenv or function()
     return shared
@@ -199,6 +200,8 @@ local Library = {
 
     --// Notifications \\--
     Notifications = {},
+    NotificationHistory = {},
+    DialogHistory = {},
     NotifySide = "Right",
     NotifyTweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 
@@ -421,6 +424,30 @@ local Templates = {
 
         --// Background \\--
         BackgroundImage = "",
+
+        --// Access control and appearance extensions
+        PremiumMode = false,
+        PremiumKeyConfig = {},
+        PremiumUserID = {},
+        VisiblePremiumMode = true,
+        PremiumWhitelistFile = "Obsidian/PremiumWhitelist.json",
+        StaffMode = false,
+        StaffUserID = {},
+        VisibleStaffMode = true,
+        AccentColor = false,
+        AccentColorRGB = Color3.fromRGB(125, 85, 255),
+        AccentColorRainbow = false,
+        BackGroundColor = false,
+        BackGroundColorRGB = Color3.fromRGB(15, 15, 15),
+        DynamicACBG = false,
+        BannerImage = "",
+        PlayerProfile = false,
+        dialog = false,
+        KeySystem = false,
+        Key = {},
+        KeysysNote = "Enter your key to continue.",
+        Getkey = false,
+        GetkeyToMessage = "",
 
         --// Section UI extensions
         MiniFooter = false,
@@ -6341,6 +6368,79 @@ do
     end
 end
 
+local function PrepareAccessControl(Info, CallbackField)
+    if typeof(Info) ~= "table" then return Info end
+    if Info.Really == true and CallbackField and typeof(Info[CallbackField]) == "function" then
+        local Original = Info[CallbackField]
+        Info[CallbackField] = function(...)
+            local Arguments = table.pack(...)
+            local Window = Library.Window
+            if Window and Window.ReallyPopup then
+                return Window:ReallyPopup(Info.ReallyTitle or "Are you sure?", Info.ReallyDescription or "Do you want to continue?", function()
+                    Original(table.unpack(Arguments, 1, Arguments.n))
+                end)
+            end
+            return Original(table.unpack(Arguments, 1, Arguments.n))
+        end
+    end
+    local Access = Library.AccessControl
+    if not Access then return Info end
+
+    local Requirement
+    if Info.PremiumMode == true then
+        Requirement = "Premium"
+    elseif Info.StaffMode == true then
+        Requirement = "Staff"
+    end
+    if not Requirement then return Info end
+
+    Info._AccessRequirement = Requirement
+    if typeof(Info.Visible) == "boolean" then
+        Info._AccessVisible = Info.Visible
+    else
+        Info._AccessVisible = true
+    end
+
+    local Allowed
+    if Requirement == "Premium" then
+        Allowed = Access.HasPremium()
+    else
+        Allowed = Access.HasStaff()
+    end
+    if not Allowed and ((Requirement == "Premium" and Access.VisiblePremiumMode)
+        or (Requirement == "Staff" and Access.VisibleStaffMode)) then
+        Info.Visible = false
+    end
+
+    if CallbackField then
+        local Original = Info[CallbackField]
+        Info[CallbackField] = function(...)
+            local CurrentlyAllowed
+            if Requirement == "Premium" then
+                CurrentlyAllowed = Access.HasPremium()
+            else
+                CurrentlyAllowed = Access.HasStaff()
+            end
+            if CurrentlyAllowed and Original then
+                return Original(...)
+            elseif Access.OnDenied then
+                Access.OnDenied(Requirement)
+            end
+        end
+    end
+    return Info
+end
+
+local function TrackAccessControl(Element, Info)
+    if not Element or typeof(Info) ~= "table" or not Info._AccessRequirement or not Library.AccessControl then
+        return Element
+    end
+    Element._AccessRequirement = Info._AccessRequirement
+    Element._AccessVisible = Info._AccessVisible ~= false
+    table.insert(Library.AccessControl.Elements, Element)
+    return Element
+end
+
 local BaseGroupbox = {}
 do
     local Funcs = {}
@@ -6659,6 +6759,11 @@ do
                 Info.Risky = Params.Risky or false
                 Info.Disabled = Params.Disabled or false
                 Info.Visible = if typeof(Params.Visible) == "boolean" then Params.Visible else true
+                Info.PremiumMode = Params.PremiumMode == true
+                Info.StaffMode = Params.StaffMode == true
+                Info.Really = Params.Really == true
+                Info.ReallyTitle = Params.ReallyTitle
+                Info.ReallyDescription = Params.ReallyDescription
                 Info.Idx = typeof(Second) == "table" and First or nil
             else
                 Info.Text = First or ""
@@ -6678,6 +6783,7 @@ do
             return Info
         end
         local Info = GetInfo(...)
+        PrepareAccessControl(Info, "Func")
 
         local Groupbox = self
         local Container = Groupbox.Container
@@ -6903,6 +7009,7 @@ do
 
         function Button:AddButton(...)
             local Info = GetInfo(...)
+            PrepareAccessControl(Info, "Func")
 
             local SubButton = {
                 Connections = {},
@@ -7032,7 +7139,7 @@ do
                 end
             end
 
-            return SubButton
+            return TrackAccessControl(SubButton, Info)
         end
 
         function Button:UpdateColors()
@@ -7144,7 +7251,7 @@ do
             end
         end
 
-        return Button
+        return TrackAccessControl(Button, Info)
     end
 
     function Funcs:AddCheckbox(Idx, Info)
@@ -7398,11 +7505,13 @@ do
             Toggles[Idx] = nil
         end
 
-        return Toggle
+        return TrackAccessControl(Toggle, Info)
     end
 
     function Funcs:AddToggle(Idx, Info)
         if self.Destroyed then return nil end
+
+        PrepareAccessControl(Info, "Callback")
 
         if Library.ForceCheckbox then
             return Funcs.AddCheckbox(self, Idx, Info)
@@ -7672,11 +7781,13 @@ do
             Toggles[Idx] = nil
         end
 
-        return Toggle
+        return TrackAccessControl(Toggle, Info)
     end
 
     function Funcs:AddInput(Idx, Info)
         if self.Destroyed then return nil end
+
+        PrepareAccessControl(Info, "Callback")
 
         if typeof(Info) == "table" and (typeof(Info.VerifyValue) == "function" and Info.Finished ~= true) then
             Info.Finished = true
@@ -7929,7 +8040,7 @@ do
             Options[Idx] = nil
         end
 
-        return Input
+        return TrackAccessControl(Input, Info)
     end
 
     function Funcs:AddSlider(Idx, Info)
@@ -8384,6 +8495,8 @@ do
 
     function Funcs:AddDropdown(Idx, Info)
         if self.Destroyed then return nil end
+
+        PrepareAccessControl(Info, "Callback")
 
         Info = Library:Validate(Info, Templates.Dropdown)
 
@@ -9507,7 +9620,7 @@ do
             Options[Idx] = nil
         end
 
-        return Dropdown
+        return TrackAccessControl(Dropdown, Info)
     end
 
     function Funcs:AddViewport(Idx, Info)
@@ -10622,6 +10735,8 @@ function Library:Notify(...)
         Data.Persist = Info.Persist
 
         Data.Callback = typeof(Info.Callback) == "function" and Info.Callback or nil
+        Data.ActionText = typeof(Info.ActionText) == "string" and Info.ActionText or nil
+        Data.ActionCallback = typeof(Info.ActionCallback) == "function" and Info.ActionCallback or nil
         Data.Closable = Info.Closable == true
 
         Data.Icon = Info.Icon
@@ -10636,6 +10751,12 @@ function Library:Notify(...)
         Data.Volume = select(4, ...) or 3
     end
     Data.Destroyed = false
+    table.insert(Library.NotificationHistory, 1, {
+        Title = Data.Title or "Notification",
+        Description = Data.Description or "",
+        Time = os.date("%H:%M:%S"),
+    })
+    while #Library.NotificationHistory > 40 do table.remove(Library.NotificationHistory) end
 
     local DeletedInstance = false
     local DeleteConnection = nil
@@ -10827,6 +10948,21 @@ function Library:Notify(...)
             Parent = TextContainer,
         })
     end
+    if Data.ActionText and Data.ActionCallback then
+        local ActionButton = New("TextButton", {
+            AutomaticSize = Enum.AutomaticSize.XY,
+            BackgroundTransparency = 1,
+            Size = UDim2.fromOffset(0, 18),
+            Text = Data.ActionText,
+            TextColor3 = "AccentColor",
+            TextSize = 13,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = TextContainer,
+        })
+        ActionButton.MouseButton1Click:Connect(function()
+            Library:SafeCallback(Data.ActionCallback)
+        end)
+    end
 
     function Data:Resize()
         local ExtraWidth = BigIconLabel and 32 or 0
@@ -11017,6 +11153,124 @@ end
 
 function Library:CreateWindow(WindowInfo)
     WindowInfo = Library:Validate(WindowInfo, Templates.Window)
+
+    if typeof(WindowInfo.AccentColor) == "Color3" then
+        Library.Scheme.AccentColor = WindowInfo.AccentColor
+    elseif WindowInfo.AccentColor == true and typeof(WindowInfo.AccentColorRGB) == "Color3" then
+        Library.Scheme.AccentColor = WindowInfo.AccentColorRGB
+    end
+    if typeof(WindowInfo.BackGroundColor) == "Color3" then
+        Library.Scheme.BackgroundColor = WindowInfo.BackGroundColor
+    elseif WindowInfo.BackGroundColor == true and typeof(WindowInfo.BackGroundColorRGB) == "Color3" then
+        Library.Scheme.BackgroundColor = WindowInfo.BackGroundColorRGB
+    end
+    Library:UpdateColorsUsingRegistry()
+
+    local function HasUserId(UserIds)
+        local UserId = LocalPlayer.UserId
+        if typeof(UserIds) == "number" or typeof(UserIds) == "string" then
+            return tonumber(UserIds) == UserId
+        end
+        if typeof(UserIds) == "table" then
+            for Key, Value in UserIds do
+                if tonumber(Key) == UserId or tonumber(Value) == UserId then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    local PremiumKeys = WindowInfo.PremiumKeyConfig
+    if typeof(PremiumKeys) ~= "table" then PremiumKeys = {} end
+    local KeyAuthorized = WindowInfo.KeySystem ~= true
+    local function IsKeyValid(Entered)
+        local Configured = WindowInfo.Key
+        if typeof(Configured) == "string" then return Entered == Configured end
+        if typeof(Configured) == "table" then
+            for _, KeyValue in Configured do
+                if tostring(KeyValue) == Entered then return true end
+            end
+        end
+        return false
+    end
+    local PremiumWhitelist = {}
+    local PremiumFile = WindowInfo.PremiumWhitelistFile
+    local function LoadPremiumWhitelist()
+        if isfile and readfile and isfile(PremiumFile) then
+            local Ok, Data = pcall(function()
+                return HttpService:JSONDecode(readfile(PremiumFile))
+            end)
+            if Ok and typeof(Data) == "table" then PremiumWhitelist = Data end
+        end
+        local Now = os.time()
+        local Changed = false
+        for UserId, Entry in PremiumWhitelist do
+            local Expiry = typeof(Entry) == "table" and tonumber(Entry.Expiry) or tonumber(Entry)
+            if Expiry and Expiry > 0 and Expiry <= Now then
+                PremiumWhitelist[UserId] = nil
+                Changed = true
+            end
+        end
+        return Changed
+    end
+    local function SavePremiumWhitelist()
+        if not writefile then return false end
+        if makefolder and isfolder and not isfolder("Obsidian") then pcall(makefolder, "Obsidian") end
+        local Ok, Encoded = pcall(function() return HttpService:JSONEncode(PremiumWhitelist) end)
+        if not Ok then return false end
+        return pcall(writefile, PremiumFile, Encoded)
+    end
+    local function HasPremium()
+        if WindowInfo.PremiumMode ~= true then return true end
+        if HasUserId(WindowInfo.PremiumUserID) then return true end
+        local RemovedExpired = LoadPremiumWhitelist()
+        if RemovedExpired then SavePremiumWhitelist() end
+        local Entry = PremiumWhitelist[tostring(LocalPlayer.UserId)]
+        local Expiry = typeof(Entry) == "table" and tonumber(Entry.Expiry) or tonumber(Entry)
+        return Expiry == 0 or (Expiry ~= nil and Expiry > os.time())
+    end
+    local function HasStaff()
+        return WindowInfo.StaffMode ~= true or HasUserId(WindowInfo.StaffUserID)
+    end
+    Library.AccessControl = {
+        HasPremium = HasPremium,
+        HasStaff = HasStaff,
+        VisiblePremiumMode = WindowInfo.VisiblePremiumMode == true,
+        VisibleStaffMode = WindowInfo.VisibleStaffMode == true,
+        OnDenied = nil,
+        Elements = {},
+    }
+    function Library.AccessControl:Refresh()
+        for Index = #self.Elements, 1, -1 do
+            local Element = self.Elements[Index]
+            if not Element or Element.Destroyed then
+                table.remove(self.Elements, Index)
+                continue
+            end
+            local Allowed = Element._AccessRequirement == "Premium" and self.HasPremium() or Element._AccessRequirement == "Staff" and self.HasStaff()
+            if Allowed and self.VisiblePremiumMode and Element._AccessRequirement == "Premium" and Element.SetVisible then
+                Element:SetVisible(Element._AccessVisible)
+            elseif Allowed and self.VisibleStaffMode and Element._AccessRequirement == "Staff" and Element.SetVisible then
+                Element:SetVisible(Element._AccessVisible)
+            elseif not Allowed and self.VisiblePremiumMode and Element._AccessRequirement == "Premium" and Element.SetVisible then
+                Element:SetVisible(false)
+            elseif not Allowed and self.VisibleStaffMode and Element._AccessRequirement == "Staff" and Element.SetVisible then
+                Element:SetVisible(false)
+            end
+        end
+    end
+    local PremiumExpiryCheck = 0
+    Library:GiveSignal(RunService.Heartbeat:Connect(function(DeltaTime)
+        PremiumExpiryCheck += DeltaTime
+        if PremiumExpiryCheck < 30 then return end
+        PremiumExpiryCheck = 0
+        if LoadPremiumWhitelist() then
+            SavePremiumWhitelist()
+            Library.AccessControl:Refresh()
+        end
+    end))
+
     local ViewportSize: Vector2 = workspace.CurrentCamera.ViewportSize
     if RunService:IsStudio() and ViewportSize.X <= 5 and ViewportSize.Y <= 5 then
         repeat
@@ -11090,6 +11344,21 @@ function Library:CreateWindow(WindowInfo)
     -- Window resolves to this local table instead of a nil global.
     local Window = {}
     local Fading = false
+    local PremiumTabRef
+    Library.AccessControl.OnDenied = function(Requirement)
+        Library:Notify({
+            Title = Requirement .. " access",
+            Description = Requirement == "Staff" and "You not Staff user." or "You not Premium user. purchase to premium?",
+            Time = 5,
+            Closable = true,
+            ActionText = Requirement == "Premium" and "Open Premium" or nil,
+            ActionCallback = function()
+                if Requirement == "Premium" and PremiumTabRef and not PremiumTabRef.Destroyed then
+                    PremiumTabRef:Show()
+                end
+            end,
+        })
+    end
 
     local IsDefaultSearchbarSize = WindowInfo.SearchbarSize == UDim2.fromScale(1, 1)
     local MainFrame
@@ -11121,6 +11390,10 @@ function Library:CreateWindow(WindowInfo)
     }
 
     local InitialLeftWidth = math.ceil(WindowInfo.Size.X.Offset * 0.3)
+    local TitleAreaWidth = InitialLeftWidth
+    if typeof(WindowInfo.BannerImage) == "string" and WindowInfo.BannerImage ~= "" then
+        TitleAreaWidth = math.min(WindowInfo.Size.X.Offset * 0.46, InitialLeftWidth + 96)
+    end
     local IsCompact = WindowInfo.SidebarCompacted
     local LastExpandedWidth = InitialLeftWidth
     local RefreshWindowTitleSize
@@ -11461,6 +11734,33 @@ end
             Visible = false,
             Parent = ScreenGui,
         })
+        if WindowInfo.DynamicACBG or WindowInfo.BackGroundColor == "Rainbow" then
+            local DynamicGradient = New("UIGradient", {
+                Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromHSV(0, 0.7, 0.22)),
+                    ColorSequenceKeypoint.new(0.5, Color3.fromHSV(0.25, 0.7, 0.3)),
+                    ColorSequenceKeypoint.new(1, Color3.fromHSV(0.5, 0.7, 0.22)),
+                }),
+                Rotation = 0,
+                Parent = MainFrame,
+            })
+            Library:GiveSignal(RunService.RenderStepped:Connect(function()
+                if not DynamicGradient.Parent then return end
+                local Hue = (os.clock() * 0.05) % 1
+                DynamicGradient.Rotation = (os.clock() * 8) % 360
+                DynamicGradient.Color = ColorSequence.new({
+                    ColorSequenceKeypoint.new(0, Color3.fromHSV(Hue, 0.75, 0.25)),
+                    ColorSequenceKeypoint.new(0.5, Color3.fromHSV((Hue + 0.18) % 1, 0.75, 0.34)),
+                    ColorSequenceKeypoint.new(1, Color3.fromHSV((Hue + 0.36) % 1, 0.75, 0.25)),
+                })
+            end))
+        end
+        if WindowInfo.AccentColorRainbow or WindowInfo.AccentColor == "Rainbow" then
+            Library:GiveSignal(RunService.RenderStepped:Connect(function()
+                Library.Scheme.AccentColor = Color3.fromHSV((os.clock() * 0.15) % 1, 1, 1)
+                Library:UpdateColorsUsingRegistry()
+            end))
+        end
         table.insert(
             Library.Corners,
             New("UICorner", {
@@ -11577,9 +11877,20 @@ end
         --// Title \\--
         TitleHolder = New("Frame", {
             BackgroundTransparency = 1,
-            Size = UDim2.new(0, InitialLeftWidth, 1, 0),
+            Size = UDim2.new(0, TitleAreaWidth, 1, 0),
             Parent = TopBar,
         })
+        if typeof(WindowInfo.BannerImage) == "string" and WindowInfo.BannerImage ~= "" then
+            local Banner = New("ImageLabel", {
+                BackgroundTransparency = 1,
+                Image = WindowInfo.BannerImage,
+                ScaleType = Enum.ScaleType.Crop,
+                Size = UDim2.new(0, TitleAreaWidth, 1, 0),
+                ZIndex = 0,
+                Parent = TopBar,
+            })
+            Window.Banner = Banner
+        end
         New("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
@@ -11638,7 +11949,7 @@ end
             AnchorPoint = Vector2.new(1, 0.5),
             BackgroundTransparency = 1,
             Position = UDim2.new(1, -49, 0.5, 0),
-            Size = UDim2.new(1, -InitialLeftWidth - 57 - 1, 1, -16),
+            Size = UDim2.new(1, -TitleAreaWidth - 57 - 1, 1, -16),
             Parent = TopBar,
         })
 
@@ -11791,6 +12102,21 @@ end
             Library:ApplyLucideIcon(SearchIconImage, SearchIcon)
         end
 
+        if WindowInfo.dialog == true then
+            local HistoryButton = New("TextButton", {
+                BackgroundTransparency = 1,
+                Size = UDim2.fromOffset(24, 24),
+                Text = "◷",
+                TextColor3 = "FontColor",
+                TextSize = 20,
+                Parent = RightWrapper,
+            })
+            HistoryButton.MouseButton1Click:Connect(function()
+                if Window.ShowNotificationHistory then Window:ShowNotificationHistory() end
+            end)
+            Window.DialogHistoryButton = HistoryButton
+        end
+
         if MoveIcon then
             local MoveIconImage = New("ImageLabel", {
                 AnchorPoint = Vector2.new(1, 0.5),
@@ -11902,6 +12228,61 @@ end
             Padding = UDim.new(0, TabButtonsStyle.Gap),
             Parent = Tabs,
         })
+        if WindowInfo.PlayerProfile then
+            Tabs.Size = UDim2.new(0, InitialLeftWidth, 1, -126)
+            local ProfileButton = New("TextButton", {
+                AnchorPoint = Vector2.new(0, 1),
+                BackgroundColor3 = "MainColor",
+                Position = UDim2.new(0, 6, 1, -6),
+                Size = UDim2.new(0, InitialLeftWidth - 12, 0, 48),
+                Text = "",
+                AutoButtonColor = false,
+                Parent = MainFrame,
+            })
+            Library:AddOutline(ProfileButton)
+            local Avatar = New("ImageLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(6, 6),
+                Size = UDim2.fromOffset(36, 36),
+                Parent = ProfileButton,
+            })
+            local AvatarOk, AvatarImage = pcall(function()
+                return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+            end)
+            if AvatarOk then Avatar.Image = AvatarImage end
+            New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(50, 5),
+                Size = UDim2.new(1, -56, 0, 19),
+                Text = LocalPlayer.DisplayName,
+                TextSize = 14,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = ProfileButton,
+            })
+            New("TextLabel", {
+                BackgroundTransparency = 1,
+                Position = UDim2.fromOffset(50, 24),
+                Size = UDim2.new(1, -56, 0, 16),
+                Text = "@" .. LocalPlayer.Name,
+                TextSize = 12,
+                TextTransparency = 0.35,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                TextTruncate = Enum.TextTruncate.AtEnd,
+                Parent = ProfileButton,
+            })
+            Window.PlayerProfileButton = ProfileButton
+            ProfileButton.MouseButton1Click:Connect(function()
+                local Humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                local Health = Humanoid and string.format("%.0f / %.0f", Humanoid.Health, Humanoid.MaxHealth) or "Unavailable"
+                local PlanText = table.concat(Window.PlayerPlans or { "Free" }, ", ")
+                Window:AddDialog("PlayerProfile", {
+                    Title = LocalPlayer.DisplayName .. " (@" .. LocalPlayer.Name .. ")",
+                    Description = "Health: " .. Health .. "\nPlans: " .. PlanText,
+                    FooterButtons = { Close = { Title = "Close", Variant = "Secondary" } },
+                })
+            end)
+        end
         New("UIPadding", {
             PaddingBottom = UDim.new(0, TabButtonsStyle.Padding),
             PaddingLeft = UDim.new(0, TabButtonsStyle.Padding),
@@ -11940,6 +12321,17 @@ end
         end
 
         UICorner[Corner] = HalfValue
+    end
+
+    function Window:PlanPlayerProfile(Plans)
+        if typeof(Plans) == "string" then
+            Window.PlayerPlans = { Plans }
+        elseif typeof(Plans) == "table" then
+            Window.PlayerPlans = table.clone(Plans)
+        else
+            Window.PlayerPlans = {}
+        end
+        return Window.PlayerPlans
     end
 
     function Window:ChangeTitle(title)
@@ -13054,6 +13446,7 @@ end
         end
 
         function Tab:AddGroupbox(Info)
+            PrepareAccessControl(Info)
             Info = Library:Validate(Info, Templates.Groupbox)
 
             if typeof(Info.Side) == "string" then
@@ -13470,7 +13863,7 @@ end
                 Groupbox:SetCollapsed(true)
             end
 
-            return Groupbox
+            return TrackAccessControl(Groupbox, Info)
         end
 
         --// Deprecated - Use Tab:AddGroupbox instead.
@@ -14071,6 +14464,14 @@ end
 
     function Window:AddDialog(Idx, Info)
         Info = Library:Validate(Info, Templates.Dialog)
+        if Idx ~= "HistoryLog" then
+            table.insert(Library.DialogHistory, 1, {
+                Title = tostring(Info.Title or "Dialog"),
+                Description = tostring(Info.Description or ""),
+                Time = os.date("%H:%M:%S"),
+            })
+            while #Library.DialogHistory > 40 do table.remove(Library.DialogHistory) end
+        end
 
         local DialogFrame
         local DialogOverlay
@@ -14546,6 +14947,43 @@ end
         return Dialog
     end
 
+    function Window:ReallyPopup(Title, Description, Callback)
+        return Window:AddDialog("ReallyPopup", {
+            Title = Title or "Are you sure?",
+            Description = Description or "Do you want to continue?",
+            AutoDismiss = true,
+            FooterButtons = {
+                Cancel = { Title = "Cancel", Variant = "Secondary" },
+                Continue = {
+                    Title = "Continue",
+                    Variant = "Primary",
+                    Callback = function()
+                        if typeof(Callback) == "function" then Callback() end
+                    end,
+                },
+            },
+        })
+    end
+
+    function Window:ShowNotificationHistory()
+        local Lines = { "Recent notifications:" }
+        for Index = 1, math.min(10, #Library.NotificationHistory) do
+            local Entry = Library.NotificationHistory[Index]
+            table.insert(Lines, string.format("[%s] %s: %s", Entry.Time, Entry.Title, Entry.Description))
+        end
+        table.insert(Lines, "")
+        table.insert(Lines, "Recent popups:")
+        for Index = 1, math.min(10, #Library.DialogHistory) do
+            local Entry = Library.DialogHistory[Index]
+            table.insert(Lines, string.format("[%s] %s: %s", Entry.Time, Entry.Title, Entry.Description))
+        end
+        return Window:AddDialog("HistoryLog", {
+            Title = "Notification and popup history",
+            Description = table.concat(Lines, "\n"),
+            FooterButtons = { Close = { Title = "Close", Variant = "Secondary" } },
+        })
+    end
+
     local GuiProperties = { "BackgroundTransparency" }
     local ImageProperties = { "BackgroundTransparency", "ImageTransparency" }
     local TextProperties = { "BackgroundTransparency", "TextTransparency" }
@@ -14572,6 +15010,7 @@ end
     end
 
     function Window:Toggle(Value: boolean?)
+        if not KeyAuthorized then return end
         if Fading then
             return
         end
@@ -14762,7 +15201,7 @@ end
     if WindowInfo.EnableCompacting and WindowInfo.SidebarCompacted then
         Window:SetSidebarWidth(WindowInfo.SidebarCompactWidth)
     end
-    if WindowInfo.AutoShow and not Library.ActiveLoading then
+    if WindowInfo.AutoShow and not Library.ActiveLoading and KeyAuthorized then
         task.spawn(Library.Toggle)
     end
 
@@ -15059,6 +15498,186 @@ end
                 end
             end)
         end
+    end
+
+    if WindowInfo.PremiumMode == true then
+        PremiumTabRef = Window:AddTab({ Name = "Premium", Icon = "lock", Description = "Enter a premium key" })
+        local PremiumGroup = PremiumTabRef:AddLeftGroupbox("Premium access")
+        PremiumGroup:AddLabel("Enter a key from PremiumKeyConfig to unlock premium features.")
+        local PremiumKeyInput = PremiumGroup:AddInput("PremiumMode_Key", {
+            Text = "Premium key",
+            Default = "",
+            Placeholder = "key",
+            Finished = true,
+        })
+        local function ParsePremiumKey(ConfigKey, ConfigDuration)
+            local BaseKey = tostring(ConfigKey or "")
+            local Duration = tostring(ConfigDuration or "")
+            local SuffixKey, SuffixDuration = BaseKey:match("^(.-)#([^#]+)$")
+            if SuffixKey then
+                BaseKey = SuffixKey
+                if Duration == "" then Duration = SuffixDuration end
+            end
+            return BaseKey, Duration:lower()
+        end
+        local function GetConfiguredKey(InputKey)
+            for Key, Value in PremiumKeys do
+                local CandidateKey
+                local Duration = ""
+                if typeof(Value) == "table" then
+                    CandidateKey = Value.Key or Value.key or (typeof(Key) == "string" and Key)
+                    Duration = Value.Duration or Value.duration or Value.Plan or ""
+                elseif typeof(Key) == "string" and tonumber(Key) == nil and not (typeof(Key) == "number") then
+                    CandidateKey = Key
+                    if typeof(Value) == "string" then Duration = Value end
+                else
+                    CandidateKey = tostring(Value or "")
+                end
+                local ParsedKey, ParsedDuration = ParsePremiumKey(CandidateKey, Duration)
+                if ParsedKey ~= "" and ParsedKey == InputKey then
+                    return ParsedDuration
+                end
+            end
+            return nil
+        end
+        PremiumGroup:AddButton({
+            Text = "Redeem key",
+            Func = function()
+                local EnteredKey = tostring(PremiumKeyInput.Value or ""):gsub("^%s+", ""):gsub("%s+$", "")
+                local Duration = GetConfiguredKey(EnteredKey)
+                if not Duration then
+                    Library:Notify({ Title = "Invalid key", Description = "This premium key is not valid.", Time = 4 })
+                    return
+                end
+
+                local Seconds = 0
+                if Duration == "24h" then Seconds = 24 * 60 * 60
+                elseif Duration == "1day" then Seconds = 24 * 60 * 60
+                elseif Duration == "1week" then Seconds = 7 * 24 * 60 * 60
+                elseif Duration == "lifetime" or Duration == "" then Seconds = 0
+                else
+                    Library:Notify({ Title = "Invalid key config", Description = "Unknown key duration: " .. Duration, Time = 4 })
+                    return
+                end
+
+                PremiumWhitelist[tostring(LocalPlayer.UserId)] = {
+                    Key = EnteredKey,
+                    Expiry = Seconds == 0 and 0 or (os.time() + Seconds),
+                }
+                if not SavePremiumWhitelist() then
+                    PremiumWhitelist[tostring(LocalPlayer.UserId)] = nil
+                    Library:Notify({ Title = "Save failed", Description = "Could not save the premium whitelist on this device.", Time = 5 })
+                    return
+                end
+                Library:Notify({ Title = "Premium unlocked", Description = "Premium access has been enabled.", Time = 4 })
+                if Library.AccessControl and Library.AccessControl.Refresh then
+                    Library.AccessControl:Refresh()
+                end
+                local UsedTab = PremiumTabRef
+                if UsedTab and not UsedTab.Destroyed then UsedTab:Destroy() end
+                PremiumTabRef = nil
+                for _, ExistingTab in Library.Tabs do
+                    if not ExistingTab.Destroyed then
+                        ExistingTab:Show()
+                        break
+                    end
+                end
+            end,
+        })
+    end
+
+    if WindowInfo.KeySystem == true and not KeyAuthorized then
+        local KeyPanel = New("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            BackgroundColor3 = "MainColor",
+            Position = UDim2.fromScale(0.5, 0.5),
+            Size = UDim2.fromOffset(390, 205),
+            ZIndex = 20,
+            Parent = ScreenGui,
+        })
+        table.insert(Library.Corners, New("UICorner", { CornerRadius = UDim.new(0, 8), Parent = KeyPanel }))
+        Library:AddOutline(KeyPanel)
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(18, 14),
+            Size = UDim2.new(1, -36, 0, 28),
+            Text = WindowInfo.Title .. " - Key System",
+            TextSize = 18,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            ZIndex = 21,
+            Parent = KeyPanel,
+        })
+        New("TextLabel", {
+            BackgroundTransparency = 1,
+            Position = UDim2.fromOffset(18, 48),
+            Size = UDim2.new(1, -36, 0, 34),
+            Text = tostring(WindowInfo.KeysysNote or "Enter your key to continue."),
+            TextSize = 13,
+            TextWrapped = true,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextTransparency = 0.25,
+            ZIndex = 21,
+            Parent = KeyPanel,
+        })
+        local KeyBox = New("TextBox", {
+            BackgroundColor3 = "BackgroundColor",
+            ClearTextOnFocus = false,
+            Position = UDim2.fromOffset(18, 91),
+            Size = UDim2.new(1, -36, 0, 36),
+            PlaceholderText = "Enter key",
+            Text = "",
+            TextSize = 14,
+            ZIndex = 21,
+            Parent = KeyPanel,
+        })
+        Library:AddOutline(KeyBox)
+        local SubmitKey = New("TextButton", {
+            BackgroundColor3 = "AccentColor",
+            Position = UDim2.new(1, -128, 1, -48),
+            Size = UDim2.fromOffset(110, 32),
+            Text = "Unlock",
+            TextSize = 14,
+            ZIndex = 21,
+            Parent = KeyPanel,
+        })
+        local function TryUnlock()
+            local Entered = KeyBox.Text:gsub("^%s+", ""):gsub("%s+$", "")
+            if not IsKeyValid(Entered) then
+                Library:Notify({ Title = "Invalid key", Description = "The key you entered is not valid.", Time = 4 })
+                return
+            end
+            KeyAuthorized = true
+            KeyPanel:Destroy()
+            if WindowInfo.AutoShow then Window:Toggle(true) end
+        end
+        SubmitKey.MouseButton1Click:Connect(TryUnlock)
+        KeyBox.FocusLost:Connect(function(EnterPressed)
+            if EnterPressed then TryUnlock() end
+        end)
+        if WindowInfo.Getkey then
+            local GetKeyButton = New("TextButton", {
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0, 18, 1, -45),
+                Size = UDim2.fromOffset(190, 28),
+                Text = "Get key",
+                TextColor3 = "AccentColor",
+                TextSize = 13,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                ZIndex = 21,
+                Parent = KeyPanel,
+            })
+            GetKeyButton.MouseButton1Click:Connect(function()
+                local Link = typeof(WindowInfo.Getkey) == "string" and WindowInfo.Getkey or ""
+                if Link ~= "" and setclipboard then pcall(setclipboard, Link) end
+                Library:Notify({
+                    Title = "Get key",
+                    Description = tostring(WindowInfo.GetkeyToMessage or "") .. (Link ~= "" and (" " .. Link) or ""),
+                    Time = 6,
+                    Closable = true,
+                })
+            end)
+        end
+        Window.KeySystemFrame = KeyPanel
     end
 
     return Window
