@@ -1655,7 +1655,11 @@ function Library:Validate(Table: { [string]: any }, Template: { [string]: any })
         end
 
         if typeof(v) == "table" then
-            Table[k] = Library:Validate(Table[k], v)
+            -- Preserve union-typed settings (for example Window.Key may be a
+            -- string or an array) instead of replacing them with the template.
+            if Table[k] == nil or typeof(Table[k]) == "table" then
+                Table[k] = Library:Validate(Table[k], v)
+            end
         elseif Table[k] == nil then
             Table[k] = v
         end
@@ -11156,12 +11160,14 @@ function Library:CreateWindow(WindowInfo)
 
     if typeof(WindowInfo.AccentColor) == "Color3" then
         Library.Scheme.AccentColor = WindowInfo.AccentColor
-    elseif WindowInfo.AccentColor == true and typeof(WindowInfo.AccentColorRGB) == "Color3" then
+    elseif typeof(WindowInfo.AccentColorRGB) == "Color3"
+        and (WindowInfo.AccentColor == true or WindowInfo.AccentColorRGB ~= Templates.Window.AccentColorRGB) then
         Library.Scheme.AccentColor = WindowInfo.AccentColorRGB
     end
     if typeof(WindowInfo.BackGroundColor) == "Color3" then
         Library.Scheme.BackgroundColor = WindowInfo.BackGroundColor
-    elseif WindowInfo.BackGroundColor == true and typeof(WindowInfo.BackGroundColorRGB) == "Color3" then
+    elseif typeof(WindowInfo.BackGroundColorRGB) == "Color3"
+        and (WindowInfo.BackGroundColor == true or WindowInfo.BackGroundColorRGB ~= Templates.Window.BackGroundColorRGB) then
         Library.Scheme.BackgroundColor = WindowInfo.BackGroundColorRGB
     end
     Library:UpdateColorsUsingRegistry()
@@ -11574,17 +11580,18 @@ end
 
                 local Visible = Option.MenuVisible ~= false
                 New("TextLabel", {
-                    AutomaticSize = Enum.AutomaticSize.X,
                     BackgroundTransparency = 1,
                     Position = UDim2.fromOffset(22, 0),
-                    Size = UDim2.fromScale(0, 1),
+                    Size = UDim2.new(1, -26, 1, 0),
                     Text = ("[%s] %s (%s)"):format(
                         Option.DisplayValue or Option.Value or "None",
                         Option.Text or tostring(Idx),
                         Option.Mode or "Toggle"
                     ),
+                    TextTruncate = Enum.TextTruncate.AtEnd,
                     TextSize = 14,
                     TextTransparency = Visible and 0 or 0.5,
+                    TextXAlignment = Enum.TextXAlignment.Left,
                     Parent = Holder,
                 })
 
@@ -12029,6 +12036,7 @@ end
             AutomaticSize = Enum.AutomaticSize.Y,
             Text = "",
             TextSize = 14,
+            TextTruncate = Enum.TextTruncate.AtEnd,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = CurrentTabTextHolder,
         })
@@ -12179,6 +12187,7 @@ end
             Size = UDim2.fromScale(1, 1),
             Text = WindowInfo.Footer,
             TextSize = 14,
+            TextTruncate = Enum.TextTruncate.AtEnd,
             TextTransparency = 0.5,
             Parent = BottomBar,
         })
@@ -12746,6 +12755,7 @@ end
                 Size = UDim2.new(1, -30, 1, 0),
                 Text = Name,
                 TextSize = 16,
+                TextTruncate = Enum.TextTruncate.AtEnd,
                 TextTransparency = 0.5,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Visible = not IsCompact,
@@ -14143,6 +14153,7 @@ end
                 Size = UDim2.new(1, -30, 1, 0),
                 Text = Name,
                 TextSize = 16,
+                TextTruncate = Enum.TextTruncate.AtEnd,
                 TextTransparency = 0.5,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 Visible = not IsCompact,
@@ -15201,7 +15212,7 @@ end
     if WindowInfo.EnableCompacting and WindowInfo.SidebarCompacted then
         Window:SetSidebarWidth(WindowInfo.SidebarCompactWidth)
     end
-    if WindowInfo.AutoShow and not Library.ActiveLoading and KeyAuthorized then
+    if WindowInfo.AutoShow and not Library.ActiveLoading and KeyAuthorized and not WindowInfo.UiLoading then
         task.spawn(Library.Toggle)
     end
 
@@ -15648,7 +15659,16 @@ end
             end
             KeyAuthorized = true
             KeyPanel:Destroy()
-            if WindowInfo.AutoShow then Window:Toggle(true) end
+            if WindowInfo.AutoShow then
+                if Library.ActiveLoading then
+                    task.spawn(function()
+                        while Library.ActiveLoading and not Library.Unloaded do task.wait(0.05) end
+                        if KeyAuthorized and not Library.Unloaded then Window:Toggle(true) end
+                    end)
+                else
+                    Window:Toggle(true)
+                end
+            end
         end
         SubmitKey.MouseButton1Click:Connect(TryUnlock)
         KeyBox.FocusLost:Connect(function(EnterPressed)
