@@ -208,6 +208,6 @@ SaveManager:LoadAutoloadConfig()
 SaveManager:InitAutoSave()
 ```
 # Credit
-v1.2.1
+v1.2.4
 by mazuiteam
 for mspaint - obisidian
