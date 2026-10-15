@@ -207,3 +207,7 @@ SaveManager:BuildConfigSection(SettingsTab)
 SaveManager:LoadAutoloadConfig()
 SaveManager:InitAutoSave()
 ```
+# Credit
+v1.2.1
+by mazuiteam
+for mspaint - obisidian
