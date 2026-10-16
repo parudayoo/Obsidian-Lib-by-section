@@ -6372,6 +6372,13 @@ do
     end
 end
 
+local function CopyAccessValue(Value)
+    if typeof(Value) == "table" then
+        return table.clone(Value)
+    end
+    return Value
+end
+
 local function PrepareAccessControl(Info, CallbackField)
     if typeof(Info) ~= "table" then return Info end
     if Info.Really == true and CallbackField and typeof(Info[CallbackField]) == "function" then
@@ -6416,20 +6423,68 @@ local function PrepareAccessControl(Info, CallbackField)
         Info.Visible = false
     end
 
+    local function IsCurrentlyAllowed()
+        if Requirement == "Premium" then
+            return Access.HasPremium()
+        end
+        return Access.HasStaff()
+    end
+
+    local function ResetDeniedValue()
+        local Element = Info._AccessElement
+        if Info._AccessRestoring or not Element or not Element.SetValue then
+            return
+        end
+
+        local ResetValue = Info._AccessLastValue
+        if Element.Type == "Toggle" then
+            -- An unauthorized click must never leave a protected toggle on,
+            -- including when access expired after it had previously been on.
+            ResetValue = false
+        elseif Element.Default ~= nil then
+            ResetValue = Element.Default
+        end
+
+        Info._AccessRestoring = true
+        pcall(Element.SetValue, Element, CopyAccessValue(ResetValue))
+        Info._AccessRestoring = false
+    end
+
     if CallbackField then
         local Original = Info[CallbackField]
         Info[CallbackField] = function(...)
-            local CurrentlyAllowed
-            if Requirement == "Premium" then
-                CurrentlyAllowed = Access.HasPremium()
-            else
-                CurrentlyAllowed = Access.HasStaff()
+            if Info._AccessRestoring then
+                return
             end
-            if CurrentlyAllowed and Original then
-                return Original(...)
-            elseif Access.OnDenied then
-                Access.OnDenied(Requirement)
+
+            if not IsCurrentlyAllowed() then
+                ResetDeniedValue()
+                if Access.OnDenied then
+                    Access.OnDenied(Requirement)
+                end
+                return
             end
+
+            local Results = if Original then table.pack(Original(...)) else nil
+            local Element = Info._AccessElement
+            if Element then
+                Info._AccessLastValue = CopyAccessValue(Element.Value)
+            end
+            if Results then
+                return table.unpack(Results, 1, Results.n)
+            end
+        end
+    end
+
+    -- Changed is a second callback path on toggles, inputs, and dropdowns.
+    -- Gate it too, but let the primary callback above handle the denial notice.
+    if typeof(Info.Changed) == "function" then
+        local OriginalChanged = Info.Changed
+        Info.Changed = function(...)
+            if Info._AccessRestoring or not IsCurrentlyAllowed() then
+                return
+            end
+            return OriginalChanged(...)
         end
     end
     return Info
@@ -6441,8 +6496,31 @@ local function TrackAccessControl(Element, Info)
     end
     Element._AccessRequirement = Info._AccessRequirement
     Element._AccessVisible = Info._AccessVisible ~= false
+    Element._AccessIsAllowed = function()
+        local Access = Library.AccessControl
+        if not Access then return true end
+        if Element._AccessRequirement == "Premium" then
+            return Access.HasPremium()
+        end
+        return Access.HasStaff()
+    end
+    Info._AccessElement = Element
+    Info._AccessLastValue = CopyAccessValue(Element.Value)
     table.insert(Library.AccessControl.Elements, Element)
     return Element
+end
+
+local function GuardAccessChanged(Element, Callback)
+    if typeof(Callback) ~= "function" then
+        Element.Changed = nil
+        return
+    end
+    Element.Changed = function(...)
+        if Element._AccessIsAllowed and not Element._AccessIsAllowed() then
+            return
+        end
+        return Callback(...)
+    end
 end
 
 local BaseGroupbox = {}
@@ -7383,7 +7461,7 @@ do
         end
 
         function Toggle:OnChanged(Func)
-            Toggle.Changed = Func
+            GuardAccessChanged(Toggle, Func)
         end
 
         function Toggle:RunChanged()
@@ -7659,7 +7737,7 @@ do
         end
 
         function Toggle:OnChanged(Func)
-            Toggle.Changed = Func
+            GuardAccessChanged(Toggle, Func)
         end
 
         function Toggle:RunChanged()
@@ -7896,7 +7974,7 @@ do
         end
 
         function Input:OnChanged(Func)
-            Input.Changed = Func
+            GuardAccessChanged(Input, Func)
         end
 
         function Input:RunChanged()
@@ -8819,7 +8897,7 @@ do
         end
 
         function Dropdown:OnChanged(Func)
-            Dropdown.Changed = Func
+            GuardAccessChanged(Dropdown, Func)
         end
 
         function Dropdown:GetActiveValues(ReturnCount)
