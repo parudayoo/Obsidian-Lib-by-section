@@ -1581,7 +1581,14 @@ function Library:GiveSignal(Connection: RBXScriptConnection | RBXScriptSignal)
 end
 
 function IsValidCustomIcon(Icon: string)
-    return typeof(Icon) == "string" and (Icon:match("^rbxasset://textures/") or Icon:match("roblox%.com/asset/%?id=") or Icon:match("rbxthumb://type="))
+    return typeof(Icon) == "string" and (
+        Icon:match("^rbxasset://textures/")
+        or Icon:match("^rbxassetid://")
+        or Icon:match("^rbxthumb://type=")
+        or Icon:match("^content://")
+        or Icon:match("^https?://")
+        or Icon:match("roblox%.com/asset/%?id=")
+    )
 end
 
 local function IsCustomAssetIcon(Icon: string, IncludeAssetId: boolean)
@@ -1642,18 +1649,15 @@ function Library:GetCustomIcon(IconName: string): any
         IconName = string.format("rbxassetid://%s", tostring(IconName))
     end
 
-    if IsCustomAssetIcon(IconName, true) then
+    if IsCustomAssetIcon(IconName, true) or IsValidCustomIcon(IconName) then
+        -- Built-in Roblox texture sprites are monochrome and can be tinted.
+        -- Uploaded images and remote/user-provided images must keep their colors.
+        local IsTintable = IconName:match("^rbxasset://textures/") ~= nil
         return {
             Url = IconName,
             ImageRectOffset = Vector2.zero,
             ImageRectSize = Vector2.zero,
-        }
-    elseif IsValidCustomIcon(IconName) then
-        return {
-            Url = IconName,
-            ImageRectOffset = Vector2.zero,
-            ImageRectSize = Vector2.zero,
-            Custom = true,
+            Custom = not IsTintable,
         }
     end
 
@@ -11744,9 +11748,14 @@ function Library:CreateWindow(WindowInfo)
         AvoidCoreGui = WindowInfo.SnapAvoidCoreGui,
     }
 
+    local BannerIcon = nil
+    if typeof(WindowInfo.BannerImage) == "string" and WindowInfo.BannerImage ~= "" then
+        BannerIcon = Library:GetCustomIcon(WindowInfo.BannerImage)
+    end
+
     local InitialLeftWidth = math.ceil(WindowInfo.Size.X.Offset * 0.3)
     local TitleAreaWidth = InitialLeftWidth
-    if typeof(WindowInfo.BannerImage) == "string" and WindowInfo.BannerImage ~= "" then
+    if BannerIcon then
         TitleAreaWidth = math.min(WindowInfo.Size.X.Offset * 0.46, InitialLeftWidth + 96)
     end
     local IsCompact = WindowInfo.SidebarCompacted
@@ -12247,15 +12256,15 @@ end
             Size = UDim2.new(0, TitleAreaWidth, 1, 0),
             Parent = TopBar,
         })
-        if typeof(WindowInfo.BannerImage) == "string" and WindowInfo.BannerImage ~= "" then
+        if BannerIcon then
             local Banner = New("ImageLabel", {
                 BackgroundTransparency = 1,
-                Image = WindowInfo.BannerImage,
                 ScaleType = Enum.ScaleType.Crop,
                 Size = UDim2.new(0, TitleAreaWidth, 1, 0),
                 ZIndex = 0,
                 Parent = TopBar,
             })
+            Library:ApplyLucideIcon(Banner, BannerIcon)
             Window.Banner = Banner
         end
         New("UIListLayout", {
@@ -12270,12 +12279,15 @@ end
             WindowIcon = nil
         elseif WindowInfo.Icon then
             local Icon = Library:GetCustomIcon(WindowInfo.Icon)
-            WindowIcon = New("ImageLabel", {
-                Size = WindowInfo.IconSize,
-                Parent = TitleHolder,
-            })
             if Icon then
+                WindowIcon = New("ImageLabel", {
+                    BackgroundTransparency = 1,
+                    Size = WindowInfo.IconSize,
+                    Parent = TitleHolder,
+                })
                 Library:ApplyLucideIcon(WindowIcon, Icon)
+            else
+                WindowIcon = nil
             end
         else
             WindowIcon = New("TextLabel", {
@@ -12609,7 +12621,7 @@ end
             Parent = Tabs,
         })
         if WindowInfo.PlayerProfile then
-            Tabs.Size = UDim2.new(0, InitialLeftWidth, 1, -126)
+            Tabs.Size = UDim2.new(0, InitialLeftWidth, 1, -103)
             local ProfileButton = New("TextButton", {
                 AnchorPoint = Vector2.new(0, 1),
                 BackgroundColor3 = "MainColor",
@@ -13008,6 +13020,12 @@ end
     end
 
     function Window:ShowTabInfo(Name, Description)
+        local HasDescription = typeof(Description) == "string" and Description:match("%S") ~= nil
+        if not HasDescription and not WindowInfo.TabDescribe then
+            Window:HideTabInfo()
+            return
+        end
+
         local TextHolder = CurrentTabTextHolder
         if not TextHolder and CurrentTabInfo then
             TextHolder = CurrentTabInfo:FindFirstChild("TabDescribeTextHolder", true)
@@ -14317,9 +14335,7 @@ end
                 }):Play()
             end
 
-            if Description or WindowInfo.TabDescribe then
-                Window:ShowTabInfo(Name, Description)
-            end
+            Window:ShowTabInfo(Name, Description)
 
             Library:PlayTabAnimation(Tab, true)
             Tab:RefreshSides()
@@ -14776,9 +14792,7 @@ end
 
             Library:PlayTabAnimation(Tab, true)
 
-            if Description then
-                Window:ShowTabInfo(Name, Description)
-            end
+            Window:ShowTabInfo(Name, Description)
 
             Tab:RefreshSides()
 
