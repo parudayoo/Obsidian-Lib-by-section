@@ -9973,6 +9973,41 @@ do
         return TrackAccessControl(Dropdown, Info)
     end
 
+    function Funcs:PlayerDropbox(Idx, Info)
+        if self.Destroyed then return nil end
+        if typeof(Info) ~= "table" then
+            Info = {}
+        else
+            Info = table.clone(Info)
+        end
+
+        Info.SpecialType = "Player"
+        Info.EnablePlayerImages = true
+        Info.AllowNull = true
+
+        if typeof(Info.FormatListValue) ~= "function" then
+            Info.FormatListValue = function(Player)
+                if typeof(Player) == "Instance" and Player:IsA("Player") then
+                    return string.format("%s (@%s)", Player.DisplayName, Player.Name)
+                end
+                return tostring(Player)
+            end
+        end
+
+        if typeof(Info.FormatDisplayValue) ~= "function" then
+            Info.FormatDisplayValue = function(PlayerName)
+                local Name = tostring(PlayerName)
+                local Player = Players:FindFirstChild(Name)
+                if Player and Player:IsA("Player") then
+                    return string.format("%s (@%s)", Player.DisplayName, Player.Name)
+                end
+                return Name
+            end
+        end
+
+        return self:AddDropdown(Idx, Info)
+    end
+
     function Funcs:AddViewport(Idx, Info)
         if self.Destroyed then return nil end
 
