@@ -377,6 +377,20 @@ local Templates = {
     Window = {
         Title = "No Title",
         Footer = "No Footer",
+        TitleTextEffect = false,
+        TitleTextEffectConfig = false,
+        TitleTextMultiT1 = "",
+        TitleTextMultiT2 = "",
+        TitleTextMultiT3 = "",
+        TitleTextMultiT4 = "",
+        TitleTextMultiT5 = "",
+        FooterTextEffect = false,
+        FooterTextEffectConfig = false,
+        FooterTextMultiT1 = "",
+        FooterTextMultiT2 = "",
+        FooterTextMultiT3 = "",
+        FooterTextMultiT4 = "",
+        FooterTextMultiT5 = "",
 
         Position = UDim2.fromOffset(6, 6),
         Size = UDim2.fromOffset(720, 600),
@@ -452,6 +466,13 @@ local Templates = {
         --// Section UI extensions
         MiniFooter = false,
         MiniFooterText = "#FPS | #PING",
+        MiniFooterTextEffect = false,
+        MiniFooterTextEffectConfig = false,
+        MiniFooterTextMultiT1 = "",
+        MiniFooterTextMultiT2 = "",
+        MiniFooterTextMultiT3 = "",
+        MiniFooterTextMultiT4 = "",
+        MiniFooterTextMultiT5 = "",
         MiniFooterAnchor = false,
         MiniFooterAnchorSide = "down",
         MiniFooterOffset = 8,
@@ -1666,6 +1687,224 @@ function Library:Validate(Table: { [string]: any }, Template: { [string]: any })
     end
 
     return Table
+end
+
+local function GetTextCharacters(Text)
+    local Characters = {}
+    local Ok = pcall(function()
+        for First, Last in utf8.graphemes(Text) do
+            table.insert(Characters, Text:sub(First, Last))
+        end
+    end)
+    if not Ok or #Characters == 0 then
+        table.clear(Characters)
+        for Index = 1, #Text do
+            table.insert(Characters, Text:sub(Index, Index))
+        end
+    end
+    return Characters
+end
+
+local function CreateTextEffect(Label, Settings, GetBaseText, OnTextChanged)
+    if not Label or Settings.Effect ~= true then
+        return nil
+    end
+
+    local Queue = {}
+    local FadeEnabled = false
+    local FadeDuration = 0.2
+    local BaseTransparency = Label.TextTransparency
+    local Controller = { Enabled = true, Animating = false, Label = Label }
+    local function AddEffect(Name, Options)
+        table.insert(Queue, { Name = Name, Options = Options or {} })
+        return Controller
+    end
+
+    local EffectAPI = {}
+    function EffectAPI:TypeR(Options) return AddEffect("TypeR", Options) end
+    function EffectAPI:MultiT(Options) return AddEffect("MultiT", Options) end
+    function EffectAPI:WSWAP(Options) return AddEffect("WSWAP", Options) end
+    function EffectAPI:MCD(Options) return AddEffect("MCD", Options) end
+    function EffectAPI:Custom(Callback) return AddEffect("Custom", Callback) end
+    function EffectAPI:FadeIO(Options)
+        FadeEnabled = true
+        if typeof(Options) == "number" then
+            FadeDuration = math.max(0, Options)
+        elseif typeof(Options) == "table" and typeof(Options.Duration) == "number" then
+            FadeDuration = math.max(0, Options.Duration)
+        end
+        return Controller
+    end
+    function EffectAPI:Pause(Duration) return AddEffect("Pause", Duration) end
+
+    local Config = Settings.Config
+    if typeof(Config) == "function" then
+        local Ok, ErrorMessage = pcall(Config, Label, EffectAPI)
+        if not Ok then
+            warn("[Library] Text effect config failed: " .. tostring(ErrorMessage))
+        end
+    else
+        EffectAPI:TypeR()
+    end
+    if #Queue == 0 then
+        EffectAPI:TypeR()
+    end
+
+    local function Active()
+        return Controller.Enabled and Label.Parent ~= nil and not Library.Unloaded
+    end
+    local function SetText(Text)
+        Label.Text = tostring(Text or "")
+        if OnTextChanged then
+            OnTextChanged()
+        end
+    end
+    local function Wait(Duration)
+        local EndTime = os.clock() + math.max(0, Duration or 0)
+        while Active() and os.clock() < EndTime do
+            task.wait(math.max(0, math.min(0.03, EndTime - os.clock())))
+        end
+        return Active()
+    end
+    local function FadeTo(Target, Duration)
+        if Duration <= 0 then
+            Label.TextTransparency = Target
+            return Active()
+        end
+        local Start = Label.TextTransparency
+        local StartedAt = os.clock()
+        while Active() do
+            local Alpha = math.clamp((os.clock() - StartedAt) / Duration, 0, 1)
+            Label.TextTransparency = Start + (Target - Start) * Alpha
+            if Alpha >= 1 then break end
+            RunService.RenderStepped:Wait()
+        end
+        return Active()
+    end
+    local function TypeText(Text, Options)
+        local Characters = GetTextCharacters(tostring(Text or ""))
+        local Interval = typeof(Options) == "number" and Options or (Options and Options.Interval) or 0.035
+        SetText("")
+        for Index = 1, #Characters do
+            if not Active() then return end
+            Label.Text ..= Characters[Index]
+            if OnTextChanged then OnTextChanged() end
+            if not Wait(Interval) then return end
+        end
+    end
+    local function MultiTexts()
+        local Result = {}
+        for Index = 1, 5 do
+            local Text = Settings["MultiT" .. Index]
+            if typeof(Text) == "string" and Text ~= "" then
+                if Settings.ResolveText then
+                    Text = Settings.ResolveText(Text)
+                end
+                table.insert(Result, Text)
+            end
+        end
+        if #Result == 0 then
+            table.insert(Result, tostring(GetBaseText() or ""))
+        end
+        return Result
+    end
+    local function RunEffect(Effect)
+        local Options = Effect.Options
+        if Effect.Name == "Pause" then
+            Wait(typeof(Options) == "number" and Options or 0.5)
+        elseif Effect.Name == "TypeR" then
+            TypeText(GetBaseText(), Options)
+        elseif Effect.Name == "MultiT" then
+            local Hold = typeof(Options) == "table" and Options.HoldTime or 0.8
+            for _, Text in MultiTexts() do
+                if not Active() then return end
+                TypeText(Text, Options)
+                if not Wait(Hold) then return end
+            end
+        elseif Effect.Name == "WSWAP" then
+            local Target = tostring(GetBaseText() or "")
+            local Words = {}
+            for Word in Target:gmatch("%S+") do table.insert(Words, Word) end
+            if #Words < 2 then
+                TypeText(Target, Options)
+                return
+            end
+            local Shuffled = table.clone(Words)
+            for Index = #Shuffled, 2, -1 do
+                local SwapIndex = math.random(1, Index)
+                Shuffled[Index], Shuffled[SwapIndex] = Shuffled[SwapIndex], Shuffled[Index]
+            end
+            SetText(table.concat(Shuffled, " "))
+            if not Wait(typeof(Options) == "table" and Options.HoldTime or 0.5) then return end
+            for Index, Word in Words do
+                if not Active() then return end
+                Shuffled[Index] = Word
+                SetText(table.concat(Shuffled, " "))
+                if not Wait(typeof(Options) == "table" and Options.Interval or 0.08) then return end
+            end
+        elseif Effect.Name == "MCD" then
+            local Target = tostring(GetBaseText() or "")
+            local Characters = GetTextCharacters(Target)
+            local Revealed = table.create(#Characters)
+            local Glyphs = "01#%&*+<>"
+            local Steps = math.max(1, math.min(#Characters, (typeof(Options) == "table" and Options.Steps) or 12))
+            for Step = 1, Steps do
+                if not Active() then return end
+                local RevealedCount = math.floor(#Characters * Step / Steps)
+                for Index = 1, #Characters do
+                    if Characters[Index]:match("%s") or Index <= RevealedCount then
+                        Revealed[Index] = Characters[Index]
+                    else
+                        local GlyphIndex = math.random(1, #Glyphs)
+                        Revealed[Index] = Glyphs:sub(GlyphIndex, GlyphIndex)
+                    end
+                end
+                SetText(table.concat(Revealed))
+                if not Wait(typeof(Options) == "table" and Options.Interval or 0.06) then return end
+            end
+            SetText(Target)
+        elseif Effect.Name == "Custom" and typeof(Options) == "function" then
+            local Ok, ErrorMessage = pcall(Options, Label, EffectAPI, GetBaseText)
+            if not Ok then warn("[Library] Custom text effect failed: " .. tostring(ErrorMessage)) end
+        end
+    end
+
+    function Controller:Stop()
+        self.Enabled = false
+        self.Animating = false
+        if Label.Parent then
+            SetText(GetBaseText())
+            Label.TextTransparency = BaseTransparency
+        end
+    end
+    function Controller:Refresh()
+        if self.Enabled and not self.Animating and Label.Parent then
+            SetText(GetBaseText())
+        end
+    end
+
+    task.spawn(function()
+        while Active() do
+            for _, Effect in Queue do
+                if not Active() then break end
+                Controller.Animating = true
+                if FadeEnabled and Effect.Name ~= "Pause" then
+                    if not FadeTo(1, FadeDuration) then break end
+                end
+                if FadeEnabled and Effect.Name ~= "Pause" then
+                    SetText(GetBaseText())
+                end
+                RunEffect(Effect)
+                if FadeEnabled and Effect.Name ~= "Pause" then
+                    FadeTo(BaseTransparency, FadeDuration)
+                end
+                Controller.Animating = false
+                if not Wait(0.25) then break end
+            end
+        end
+    end)
+
+    return Controller
 end
 
 --// Creator Functions \\--
@@ -11494,6 +11733,9 @@ function Library:CreateWindow(WindowInfo)
     local BottomBackground
     local BottomBackgroundCorner
     local FooterLabel
+    local TitleTextEffectController
+    local FooterTextEffectController
+    local MiniFooterTextEffectController
     local TopBar
     local WindowSnapConfig = {
         Enabled = WindowInfo.Snapping,
@@ -11510,6 +11752,17 @@ function Library:CreateWindow(WindowInfo)
     local IsCompact = WindowInfo.SidebarCompacted
     local LastExpandedWidth = InitialLeftWidth
     local RefreshWindowTitleSize
+    local function StartWindowTextEffect(Label, Prefix, GetText, OnTextChanged, ResolveText)
+        local Settings = {
+            Effect = WindowInfo[Prefix .. "Effect"],
+            Config = WindowInfo[Prefix .. "EffectConfig"],
+            ResolveText = ResolveText,
+        }
+        for Index = 1, 5 do
+            Settings["MultiT" .. Index] = WindowInfo[Prefix .. "MultiT" .. Index]
+        end
+        return CreateTextEffect(Label, Settings, GetText, OnTextChanged)
+    end
 
     do
         local KeybindFrame, KeybindContainer, _, KeybindDivider, KeybindLabelPadding = Library:AddDraggableMenu("Keybinds")
@@ -12057,6 +12310,12 @@ end
             WindowTitle.Size = UDim2.new(0, math.min(NaturalWidth, MaxWidth), 1, 0)
         end
         RefreshWindowTitleSize()
+        TitleTextEffectController = StartWindowTextEffect(
+            WindowTitle,
+            "TitleText",
+            function() return WindowInfo.Title end,
+            RefreshWindowTitleSize
+        )
 
         --// Top Right Bar \\--
         RightWrapper = New("Frame", {
@@ -12298,6 +12557,11 @@ end
             TextTransparency = 0.5,
             Parent = BottomBar,
         })
+        FooterTextEffectController = StartWindowTextEffect(
+            FooterLabel,
+            "FooterText",
+            function() return WindowInfo.Footer end
+        )
 
         --// Resize Button \\--
         if WindowInfo.Resizable then
@@ -12518,11 +12782,30 @@ end
         WindowInfo.BackgroundImage = Image
     end
 
+    function Window:SetTitle(Title: string)
+        assert(typeof(Title) == "string", "Expected string for title got: " .. typeof(Title))
+
+        WindowInfo.Title = Title
+        if TitleTextEffectController then
+            TitleTextEffectController:Refresh()
+        else
+            WindowTitle.Text = Title
+        end
+        if WindowIcon and WindowIcon:IsA("TextLabel") then
+            WindowIcon.Text = Title:sub(1, 1)
+        end
+        RefreshWindowTitleSize()
+    end
+
     function Window:SetFooter(Footer: string)
         assert(typeof(Footer) == "string", "Expected string for footer got: " .. typeof(Footer))
 
-        FooterLabel.Text = Footer
         WindowInfo.Footer = Footer
+        if FooterTextEffectController then
+            FooterTextEffectController:Refresh()
+        else
+            FooterLabel.Text = Footer
+        end
     end
 
     function Window:SetAlwaysOnTop(Enabled: boolean)
@@ -15457,13 +15740,31 @@ end
             return 0
         end
 
-        local UpdateMiniFooterText = function()
-            local Text = MiniFooterText
+        local function ResolveMiniFooterText(Text)
             Text = Text:gsub("#FPS", tostring(CurrentFPS))
             Text = Text:gsub("#PING", tostring(CurrentPING))
-            MiniFooterLabel.Text = Text
+            return Text
+        end
+
+        local function GetMiniFooterDisplayText()
+            return ResolveMiniFooterText(MiniFooterText)
+        end
+
+        local UpdateMiniFooterText = function()
+            if MiniFooterTextEffectController then
+                MiniFooterTextEffectController:Refresh()
+            else
+                MiniFooterLabel.Text = GetMiniFooterDisplayText()
+            end
         end
         UpdateMiniFooterText()
+        MiniFooterTextEffectController = StartWindowTextEffect(
+            MiniFooterLabel,
+            "MiniFooterText",
+            GetMiniFooterDisplayText,
+            nil,
+            ResolveMiniFooterText
+        )
 
         Library:GiveSignal(RunService.RenderStepped:Connect(function()
             if Library.Unloaded then return end
