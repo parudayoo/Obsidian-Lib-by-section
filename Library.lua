@@ -12612,10 +12612,11 @@ end
 
         --// Tabs \\--
         Tabs = New("ScrollingFrame", {
+            AnchorPoint = WindowInfo.RightTabsModes and Vector2.new(1, 0) or Vector2.new(0, 0),
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
             BackgroundTransparency = 1,
             CanvasSize = UDim2.fromScale(0, 0),
-            Position = WindowInfo.RightTabsModes and UDim2.new(1, -InitialLeftWidth, 0, 49) or UDim2.fromOffset(0, 49),
+            Position = WindowInfo.RightTabsModes and UDim2.new(1, 0, 0, 49) or UDim2.fromOffset(0, 49),
             ScrollBarImageTransparency = 1,
             ScrollBarThickness = 0,
             Size = UDim2.new(0, InitialLeftWidth, 1, -70),
@@ -13013,7 +13014,8 @@ end
         TitleHolder.Size = UDim2.new(0, Width, 1, 0)
         RightWrapper.Size = UDim2.new(1, -Width - 57 - 1, 1, -16)
         Tabs.Size = UDim2.new(0, Width, 1, WindowInfo.PlayerProfile and -103 or -70)
-        Tabs.Position = RightTabs and UDim2.new(1, -Width, 0, 49) or UDim2.fromOffset(0, 49)
+        Tabs.AnchorPoint = RightTabs and Vector2.new(1, 0) or Vector2.new(0, 0)
+        Tabs.Position = RightTabs and UDim2.new(1, 0, 0, 49) or UDim2.fromOffset(0, 49)
         Container.Size = UDim2.new(1, -Width - 1, 1, -70)
         if RightTabs then
             Container.AnchorPoint = Vector2.new(0, 0)
