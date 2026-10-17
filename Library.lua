@@ -6379,6 +6379,17 @@ local function CopyAccessValue(Value)
     return Value
 end
 
+local function InheritAccessControl(Info, Parent)
+    if typeof(Info) ~= "table" or not Parent or not Parent._AccessRequirement then
+        return Info
+    end
+    if Info.PremiumMode ~= true and Info.StaffMode ~= true then
+        Info.PremiumMode = Parent._AccessRequirement == "Premium"
+        Info.StaffMode = Parent._AccessRequirement == "Staff"
+    end
+    return Info
+end
+
 local function PrepareAccessControl(Info, CallbackField)
     if typeof(Info) ~= "table" then return Info end
     if Info.Really == true and CallbackField and typeof(Info[CallbackField]) == "function" then
@@ -6441,6 +6452,12 @@ local function PrepareAccessControl(Info, CallbackField)
             -- An unauthorized click must never leave a protected toggle on,
             -- including when access expired after it had previously been on.
             ResetValue = false
+        elseif Element.Type == "Dropdown" and not Element.Multi then
+            local Defaults = Element.Default
+            ResetValue = nil
+            if typeof(Defaults) == "table" then
+                ResetValue = Defaults[1]
+            end
         elseif Element.Default ~= nil then
             ResetValue = Element.Default
         end
@@ -6865,6 +6882,7 @@ do
             return Info
         end
         local Info = GetInfo(...)
+        InheritAccessControl(Info, self)
         PrepareAccessControl(Info, "Func")
 
         local Groupbox = self
@@ -7091,6 +7109,7 @@ do
 
         function Button:AddButton(...)
             local Info = GetInfo(...)
+            InheritAccessControl(Info, Button)
             PrepareAccessControl(Info, "Func")
 
             local SubButton = {
@@ -7339,6 +7358,8 @@ do
     function Funcs:AddCheckbox(Idx, Info)
         if self.Destroyed then return nil end
 
+        InheritAccessControl(Info, self)
+        PrepareAccessControl(Info, "Callback")
         Info = Library:Validate(Info, Templates.Toggle)
 
         local Groupbox = self
@@ -7593,11 +7614,12 @@ do
     function Funcs:AddToggle(Idx, Info)
         if self.Destroyed then return nil end
 
-        PrepareAccessControl(Info, "Callback")
-
         if Library.ForceCheckbox then
             return Funcs.AddCheckbox(self, Idx, Info)
         end
+
+        InheritAccessControl(Info, self)
+        PrepareAccessControl(Info, "Callback")
 
         Info = Library:Validate(Info, Templates.Toggle)
 
@@ -7869,6 +7891,7 @@ do
     function Funcs:AddInput(Idx, Info)
         if self.Destroyed then return nil end
 
+        InheritAccessControl(Info, self)
         PrepareAccessControl(Info, "Callback")
 
         if typeof(Info) == "table" and (typeof(Info.VerifyValue) == "function" and Info.Finished ~= true) then
@@ -8578,6 +8601,7 @@ do
     function Funcs:AddDropdown(Idx, Info)
         if self.Destroyed then return nil end
 
+        InheritAccessControl(Info, self)
         PrepareAccessControl(Info, "Callback")
 
         Info = Library:Validate(Info, Templates.Dropdown)
@@ -11234,18 +11258,23 @@ function Library:Notify(...)
 end
 
 function Library:CreateWindow(WindowInfo)
+    if Library.Window and Library.Window.MainFrame and Library.Window.MainFrame.Parent then
+        warn("[Library] CreateWindow was called more than once; returning the existing window.")
+        return Library.Window
+    end
+
+    local HasAccentRGBOption = typeof(WindowInfo) == "table" and WindowInfo.AccentColorRGB ~= nil
+    local HasBackgroundRGBOption = typeof(WindowInfo) == "table" and WindowInfo.BackGroundColorRGB ~= nil
     WindowInfo = Library:Validate(WindowInfo, Templates.Window)
 
     if typeof(WindowInfo.AccentColor) == "Color3" then
         Library.Scheme.AccentColor = WindowInfo.AccentColor
-    elseif typeof(WindowInfo.AccentColorRGB) == "Color3"
-        and (WindowInfo.AccentColor == true or WindowInfo.AccentColorRGB ~= Templates.Window.AccentColorRGB) then
+    elseif typeof(WindowInfo.AccentColorRGB) == "Color3" and HasAccentRGBOption then
         Library.Scheme.AccentColor = WindowInfo.AccentColorRGB
     end
     if typeof(WindowInfo.BackGroundColor) == "Color3" then
         Library.Scheme.BackgroundColor = WindowInfo.BackGroundColor
-    elseif typeof(WindowInfo.BackGroundColorRGB) == "Color3"
-        and (WindowInfo.BackGroundColor == true or WindowInfo.BackGroundColorRGB ~= Templates.Window.BackGroundColorRGB) then
+    elseif typeof(WindowInfo.BackGroundColorRGB) == "Color3" and HasBackgroundRGBOption then
         Library.Scheme.BackgroundColor = WindowInfo.BackGroundColorRGB
     end
     Library:UpdateColorsUsingRegistry()
