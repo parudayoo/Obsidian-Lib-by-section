@@ -423,6 +423,7 @@ local Templates = {
         UnlockMouseWhileOpen = true,
 
         EnableSidebarResize = false,
+        RightTabsModes = false,
         EnableCompacting = true,
         DisableCompactingSnap = false,
         SidebarCompacted = false,
@@ -12185,7 +12186,7 @@ end
 
         DividerLine = New("Frame", {
             BackgroundColor3 = "OutlineColor",
-            Position = UDim2.fromOffset(InitialLeftWidth, 0),
+            Position = WindowInfo.RightTabsModes and UDim2.new(1, -InitialLeftWidth - 1, 0, 0) or UDim2.fromOffset(InitialLeftWidth, 0),
             Size = UDim2.new(0, 1, 1, -21),
             Parent = MainFrame,
             ZIndex = 2
@@ -12269,9 +12270,13 @@ end
         end
         New("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
-            HorizontalAlignment = Enum.HorizontalAlignment.Center,
+            HorizontalAlignment = Enum.HorizontalAlignment.Left,
             VerticalAlignment = Enum.VerticalAlignment.Center,
             Padding = UDim.new(0, 6),
+            Parent = TitleHolder,
+        })
+        New("UIPadding", {
+            PaddingLeft = UDim.new(0, 12),
             Parent = TitleHolder,
         })
 
@@ -12608,9 +12613,9 @@ end
         --// Tabs \\--
         Tabs = New("ScrollingFrame", {
             AutomaticCanvasSize = Enum.AutomaticSize.Y,
-            BackgroundColor3 = "BackgroundColor",
+            BackgroundTransparency = 1,
             CanvasSize = UDim2.fromScale(0, 0),
-            Position = UDim2.fromOffset(0, 49),
+            Position = WindowInfo.RightTabsModes and UDim2.new(1, -InitialLeftWidth, 0, 49) or UDim2.fromOffset(0, 49),
             ScrollBarImageTransparency = 1,
             ScrollBarThickness = 0,
             Size = UDim2.new(0, InitialLeftWidth, 1, -70),
@@ -12625,7 +12630,7 @@ end
             local ProfileButton = New("TextButton", {
                 AnchorPoint = Vector2.new(0, 1),
                 BackgroundColor3 = "MainColor",
-                Position = UDim2.new(0, 6, 1, -6),
+                Position = WindowInfo.RightTabsModes and UDim2.new(1, -InitialLeftWidth + 6, 1, -6) or UDim2.new(0, 6, 1, -6),
                 Size = UDim2.new(0, InitialLeftWidth - 12, 0, 48),
                 Text = "",
                 AutoButtonColor = false,
@@ -12685,13 +12690,13 @@ end
 
         --// Container \\--
         Container = New("Frame", {
-            AnchorPoint = Vector2.new(1, 0),
+            AnchorPoint = WindowInfo.RightTabsModes and Vector2.new(0, 0) or Vector2.new(1, 0),
             BackgroundColor3 = function()
                 return Library:GetBetterColor(Library.Scheme.BackgroundColor, 1)
             end,
             ClipsDescendants = true,
             Name = "Container",
-            Position = UDim2.new(1, 0, 0, 49),
+            Position = WindowInfo.RightTabsModes and UDim2.new(0, 0, 0, 49) or UDim2.new(1, 0, 0, 49),
             Size = UDim2.new(1, -InitialLeftWidth - 1, 1, -70),
             Parent = MainFrame,
         })
@@ -13002,12 +13007,29 @@ end
     function Window:SetSidebarWidth(Width)
         Width = math.clamp(Width, 48, MainFrame.Size.X.Offset - WindowInfo.MinContainerWidth - 1)
 
-        DividerLine.Position = UDim2.fromOffset(Width, 0)
+        local RightTabs = WindowInfo.RightTabsModes == true
+        DividerLine.Position = RightTabs and UDim2.new(1, -Width - 1, 0, 0) or UDim2.fromOffset(Width, 0)
 
         TitleHolder.Size = UDim2.new(0, Width, 1, 0)
         RightWrapper.Size = UDim2.new(1, -Width - 57 - 1, 1, -16)
-        Tabs.Size = UDim2.new(0, Width, 1, -70)
+        Tabs.Size = UDim2.new(0, Width, 1, WindowInfo.PlayerProfile and -103 or -70)
+        Tabs.Position = RightTabs and UDim2.new(1, -Width, 0, 49) or UDim2.fromOffset(0, 49)
         Container.Size = UDim2.new(1, -Width - 1, 1, -70)
+        if RightTabs then
+            Container.AnchorPoint = Vector2.new(0, 0)
+            Container.Position = UDim2.new(0, 0, 0, 49)
+            if Window.PlayerProfileButton then
+                Window.PlayerProfileButton.Size = UDim2.new(0, Width - 12, 0, 48)
+                Window.PlayerProfileButton.Position = UDim2.new(1, -Width + 6, 1, -6)
+            end
+        else
+            Container.AnchorPoint = Vector2.new(1, 0)
+            Container.Position = UDim2.new(1, 0, 0, 49)
+            if Window.PlayerProfileButton then
+                Window.PlayerProfileButton.Size = UDim2.new(0, Width - 12, 0, 48)
+                Window.PlayerProfileButton.Position = UDim2.new(0, 6, 1, -6)
+            end
+        end
 
         if WindowInfo.EnableCompacting then
             ApplyCompact()
@@ -15596,7 +15618,7 @@ end
 
             if Dragging and IsHoverInput(Input) then
                 local Delta = Input.Position - StartPos
-                local Width = StartWidth + Delta.X
+                local Width = StartWidth + (WindowInfo.RightTabsModes and -Delta.X or Delta.X)
 
                 if WindowInfo.DisableCompactingSnap then
                     Window:SetSidebarWidth(Width)
