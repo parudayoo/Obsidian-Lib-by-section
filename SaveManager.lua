@@ -158,7 +158,7 @@ end
 function SaveManager:ApplyConfig(data)
     if not data or not Library then return false end
     local themeManager = GetThemeManager()
-    if data.Theme and themeManager then
+    if not IgnoreTheme and data.Theme and themeManager then
         themeManager:ApplyTheme(data.Theme)
     end
 
