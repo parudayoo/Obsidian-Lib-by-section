@@ -1,4 +1,11 @@
+<div align="center">
 # Obsidian-Lib by section
+</div>
+
+> [!Warning]
+> **this library is support off**.
+
+
 ### First, an overview of Obsidian UI
 First, an overview of Obsidian UI:
 Obsidian UI is a Roblox UI library known for its high quality and widespread adoption. It was developed by mspaint, the renowned script team behind Doors. Obsidian UI is the team’s second project, succeeding Linoria UI.
