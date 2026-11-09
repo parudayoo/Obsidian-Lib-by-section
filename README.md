@@ -1,5 +1,6 @@
 <div align="center">
 # Obsidian-Lib by section
+**More beautiful, easier to use, and simpler**
 </div>
 
 > [!Warning]
