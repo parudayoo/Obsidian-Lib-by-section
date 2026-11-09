@@ -5,7 +5,7 @@
 </div>
 
 > [!Warning]
-> **this library is support off**.
+> **Out of support**.
 
 
 ### First, an overview of Obsidian UI
