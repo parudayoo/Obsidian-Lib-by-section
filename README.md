@@ -2,6 +2,10 @@
 
 # Obsidian-Lib by section
 **More beautiful, easier to use, and simpler**
+
+[![Discord](https://img.shields.io/badge/discord-join-blue)](https://discord.gg/Tqy8uVkHCj)
+[![mazui](https://img.shields.io/badge/mazui-cc-red)](https://mazui.cc)
+
 </div>
 
 > [!Warning]
