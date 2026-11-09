@@ -13,68 +13,18 @@ First, an overview of Obsidian UI:
 Obsidian UI is a Roblox UI library known for its high quality and widespread adoption. It was developed by mspaint, the renowned script team behind Doors. Obsidian UI is the team’s second project, succeeding Linoria UI.
 
 As an open-source library, Obsidian UI allows for deep customization. Based on it, Section UI is our customized extension that adds convenient features and enhancements, making it even more user-friendly for everyone.
+
+
 ### Extensions
-**Mini Footer**
-
-
-```MiniFooter, MiniFooterText, MiniFooterAnchor, MiniFooterAnchorSide, MiniFooterOffset, MiniFooterScreenNotMainUI```
-
-**UI Frame**
-
-```UIFrame, UIFrameColor, UIFrameThickness, UIFrameTransparency, frameColorRainbow```
-
-**Icon disable**
-
-```IconDisable```
-
-**Font customizer**
-
-```FontCustomizer, FontConfig```
-
-**Extensions**
-
-```Library:CreateConditionalHolder```
-
-**UiLoading**
-```loadwaittime, Window:loadwaittime("..."), UiLoadingCustomUI: function(Loading, Window), Loading.MainFrame ```
-
-**TabDescribe**
-```Window:TabDescribeIcon(ImageID, "Right")```
-
-**ExAnimation**
-```ExAnimation```
-
-# explain
-> Note: Honestly, I don’t even think I need to be here lol
-
-**Mini Footer**
-
-Full support for Mini Footer FPS/PING replacement: Automatic handling via dragging or top/bottom/left/right anchoring.
-
-**UI Frame**
-Add RGB border around Main UI
-> hint: lol rainbow
-
-**Icon disable**
-Completely stop generating icons
-> hint: We don’t really recommend using this feature at the moment
-
-**Font customizer**
-
-Specify the font using the Enum.Font name.
-
-**Extensions**
-
-Toggle GroupBox visibility by condition function
-
-**UiLoading**
-
-UI loading, Displays the standard loading screen. loadwaittime sets the display duration in seconds, and Window:loadwaittime("...") sets the display message.
-
-Callback in the format of UiLoadingCustomUI: function(Loading, Window), allowing you to customize elements such as Loading.MainFrame.
-
-**TabDescribe**
-Displays a description, a smaller subtitle/description text, and an icon at the top. The icon can be specified via configuration options or by using Window:TabDescribeIcon(ImageID, "Right").
+| Feature / Module | Description | Key Properties / Functions / Hints |
+| :--- | :--- | :--- |
+| **Mini Footer** | FPS/PING replacement mini footer. Automatically handles dragging and top/bottom/left/right anchoring. | `MiniFooter`, `MiniFooterText`, `MiniFooterAnchor`, `MiniFooterAnchorSide`, `MiniFooterOffset`, `MiniFooterScreenNotMainUI` |
+| **UI Frame** | Adds a border frame around the main UI, supporting custom colors and RGB rainbow effects. | `UIFrame`, `UIFrameColor`, `UIFrameThickness`, `UIFrameTransparency`, `frameColorRainbow` |
+| **Icon disable** | Completely disables icon generation. | `IconDisable` <br>*(Currently not recommended)* |
+| **Font customizer** | Customizes UI fonts using `Enum.Font` names. | `FontCustomizer`, `FontConfig` |
+| **Extensions** | Toggles GroupBox visibility dynamically based on condition functions. | `Library:CreateConditionalHolder` |
+| **UiLoading** | Displays a standard loading screen with duration, custom message, and UI layout callbacks. | `loadwaittime`, `Window:loadwaittime("...")`, `UiLoadingCustomUI: function(Loading, Window)` |
+| **TabDescribe** | Displays descriptions, subtitles, and icons at the top of a tab with alignment control. | `Window:TabDescribeIcon(ImageID, "Right")` |
 
 
 # example
